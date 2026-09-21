@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tech-Wealth Lab</title>
 
-  <!-- 閃電 Emoji Favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <!-- 閃電 Emoji Favicon (完全 URL Encode 相容 GitHub Pages 與所有現代瀏覽器) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+  <link rel="alternate icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -111,11 +112,12 @@
     .fade-up-delay-1 { animation: fadeUp 0.5s 0.08s ease both; }
     .fade-up-delay-2 { animation: fadeUp 0.5s 0.16s ease both; }
     .fade-up-delay-3 { animation: fadeUp 0.5s 0.24s ease both; }
+    .fade-up-delay-4 { animation: fadeUp 0.5s 0.32s ease both; }
   </style>
 </head>
 <body class="text-slate-100">
   <main class="min-h-screen p-6 lg:p-10">
-    <div class="max-w-[1200px] mx-auto space-y-10">
+    <div class="max-w-[1240px] mx-auto space-y-10">
 
       <!-- Header -->
       <header class="pt-6 lg:pt-12 fade-up">
@@ -127,14 +129,14 @@
           <span class="gradient-text">Tech-Wealth</span><span class="accent-text"> Lab</span>
         </h1>
         <p class="text-slate-400 mt-5 max-w-xl leading-relaxed text-base lg:text-lg">
-          一系列輕量、即時計算的個人財務工具。打開瀏覽器就能用,不必註冊、不存資料。
+          一系列輕量、即時計算的個人財務工具。打開瀏覽器就能用，不必註冊、不存資料。
         </p>
 
         <!-- Meta row -->
         <div class="flex flex-wrap items-center gap-6 mt-6 text-sm">
           <div class="flex items-center gap-2 text-slate-400">
             <span class="text-[10px] uppercase tracking-[0.18em] text-slate-500">Tools</span>
-            <span class="num font-semibold text-white">03</span>
+            <span class="num font-semibold text-white">04</span>
           </div>
           <div class="w-px h-4 bg-white/10"></div>
           <div class="flex items-center gap-2 text-slate-400">
@@ -149,81 +151,116 @@
         </div>
       </header>
 
-      <!-- Tool grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      <!-- Tool grid (4 Tools Responsive Grid) -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
 
         <!-- Card 1: 股票質押 (sky) -->
         <a href="./stock-collateral-dashboard.html"
-           class="tool-card glass-strong rounded-3xl p-6 lg:p-7 fade-up-delay-1"
+           class="tool-card glass-strong rounded-3xl p-6 lg:p-7 fade-up-delay-1 flex flex-col justify-between"
            style="--accent: rgba(56,189,248,0.6); --accent-glow: rgba(56,189,248,0.18);">
-          <div class="flex items-start justify-between gap-3 mb-6">
-            <div class="icon-box"
-                 style="--icon-bg-1: rgba(56,189,248,0.18); --icon-bg-2: rgba(56,189,248,0.04);
-                        --icon-border: rgba(56,189,248,0.35); --icon-shadow: rgba(56,189,248,0.5);">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/>
-              </svg>
+          <div>
+            <div class="flex items-start justify-between gap-3 mb-6">
+              <div class="icon-box"
+                   style="--icon-bg-1: rgba(56,189,248,0.18); --icon-bg-2: rgba(56,189,248,0.04);
+                          --icon-border: rgba(56,189,248,0.35); --icon-shadow: rgba(56,189,248,0.5);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/>
+                </svg>
+              </div>
+              <span class="arrow text-slate-500 text-xl transition-transform">→</span>
             </div>
-            <span class="arrow text-slate-500 text-xl transition-transform">→</span>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300/80 mb-2">Risk Console</div>
+            <h2 class="display text-xl font-bold text-white mb-2 leading-tight">股票質押風險儀表板</h2>
+            <p class="text-sm text-slate-400 leading-relaxed mb-5">
+              即時計算借款金額、維持率與安全距離。視覺化跌幅緩衝與續借壓力。
+            </p>
           </div>
-          <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300/80 mb-2">Risk Console</div>
-          <h2 class="display text-xl font-bold text-white mb-2 leading-tight">股票質押風險儀表板</h2>
-          <p class="text-sm text-slate-400 leading-relaxed mb-5">
-            即時計算借款金額、維持率與安全距離。視覺化跌幅緩衝與續借壓力。
-          </p>
-          <div class="flex flex-wrap gap-1.5">
+          <div class="flex flex-wrap gap-1.5 mt-auto">
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">維持率</span>
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">補錢門檻</span>
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">再投入模擬</span>
           </div>
         </a>
 
-        <!-- Card 2: 退休提領 (emerald) -->
-        <a href="./retirement-withdrawal-calculator.html"
-           class="tool-card glass-strong rounded-3xl p-6 lg:p-7 fade-up-delay-2"
-           style="--accent: rgba(34,197,94,0.6); --accent-glow: rgba(34,197,94,0.18);">
-          <div class="flex items-start justify-between gap-3 mb-6">
-            <div class="icon-box"
-                 style="--icon-bg-1: rgba(34,197,94,0.18); --icon-bg-2: rgba(34,197,94,0.04);
-                        --icon-border: rgba(34,197,94,0.35); --icon-shadow: rgba(34,197,94,0.5);">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#86efac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-              </svg>
+        <!-- Card 2: 槓桿與現金流生存測試 (amber - 新增工具) -->
+        <a href="./leverage-cashflow-simulator.html"
+           class="tool-card glass-strong rounded-3xl p-6 lg:p-7 fade-up-delay-2 flex flex-col justify-between"
+           style="--accent: rgba(245,158,11,0.6); --accent-glow: rgba(245,158,11,0.18);">
+          <div>
+            <div class="flex items-start justify-between gap-3 mb-6">
+              <div class="icon-box"
+                   style="--icon-bg-1: rgba(245,158,11,0.18); --icon-bg-2: rgba(245,158,11,0.04);
+                          --icon-border: rgba(245,158,11,0.35); --icon-shadow: rgba(245,158,11,0.5);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="m9 12 2 2 4-4"/>
+                </svg>
+              </div>
+              <span class="arrow text-slate-500 text-xl transition-transform">→</span>
             </div>
-            <span class="arrow text-slate-500 text-xl transition-transform">→</span>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300/80 mb-2">Survival Test</div>
+            <h2 class="display text-xl font-bold text-white mb-2 leading-tight">槓桿與生存測試模擬器</h2>
+            <p class="text-sm text-slate-400 leading-relaxed mb-5">
+              信貸去槓桿 vs 質押全額運轉。計算預留本息與第二池，測試熊市零收入極端生存跑道。
+            </p>
           </div>
-          <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300/80 mb-2">Cashflow Planner</div>
-          <h2 class="display text-xl font-bold text-white mb-2 leading-tight">退休提領計算機</h2>
-          <p class="text-sm text-slate-400 leading-relaxed mb-5">
-            規劃退休現金流。試算 4% 法則、不同報酬率下的本金消耗與壽命。
-          </p>
-          <div class="flex flex-wrap gap-1.5">
+          <div class="flex flex-wrap gap-1.5 mt-auto">
+            <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">現金跑道</span>
+            <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">信貸 vs 質押</span>
+            <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">熊市存活率</span>
+          </div>
+        </a>
+
+        <!-- Card 3: 退休提領 (emerald) -->
+        <a href="./retirement-withdrawal-calculator.html"
+           class="tool-card glass-strong rounded-3xl p-6 lg:p-7 fade-up-delay-3 flex flex-col justify-between"
+           style="--accent: rgba(34,197,94,0.6); --accent-glow: rgba(34,197,94,0.18);">
+          <div>
+            <div class="flex items-start justify-between gap-3 mb-6">
+              <div class="icon-box"
+                   style="--icon-bg-1: rgba(34,197,94,0.18); --icon-bg-2: rgba(34,197,94,0.04);
+                          --icon-border: rgba(34,197,94,0.35); --icon-shadow: rgba(34,197,94,0.5);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#86efac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                </svg>
+              </div>
+              <span class="arrow text-slate-500 text-xl transition-transform">→</span>
+            </div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300/80 mb-2">Cashflow Planner</div>
+            <h2 class="display text-xl font-bold text-white mb-2 leading-tight">退休提領計算機</h2>
+            <p class="text-sm text-slate-400 leading-relaxed mb-5">
+              規劃退休現金流。試算 4% 法則、不同報酬率下的本金消耗與壽命。
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mt-auto">
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">提領率</span>
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">通膨調整</span>
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">本金軌跡</span>
           </div>
         </a>
 
-        <!-- Card 3: 外商薪資 (violet) -->
+        <!-- Card 4: 外商薪資 (violet) -->
         <a href="./foreign-company-salary-calculator.html"
-           class="tool-card glass-strong rounded-3xl p-6 lg:p-7 fade-up-delay-3"
+           class="tool-card glass-strong rounded-3xl p-6 lg:p-7 fade-up-delay-4 flex flex-col justify-between"
            style="--accent: rgba(168,85,247,0.6); --accent-glow: rgba(168,85,247,0.18);">
-          <div class="flex items-start justify-between gap-3 mb-6">
-            <div class="icon-box"
-                 style="--icon-bg-1: rgba(168,85,247,0.18); --icon-bg-2: rgba(168,85,247,0.04);
-                        --icon-border: rgba(168,85,247,0.35); --icon-shadow: rgba(168,85,247,0.5);">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="6" width="18" height="14" rx="2"/><path d="M8 6V4h8v2"/><path d="M12 11v5M9 13h6"/>
-              </svg>
+          <div>
+            <div class="flex items-start justify-between gap-3 mb-6">
+              <div class="icon-box"
+                   style="--icon-bg-1: rgba(168,85,247,0.18); --icon-bg-2: rgba(168,85,247,0.04);
+                          --icon-border: rgba(168,85,247,0.35); --icon-shadow: rgba(168,85,247,0.5);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="6" width="18" height="14" rx="2"/><path d="M8 6V4h8v2"/><path d="M12 11v5M9 13h6"/>
+                </svg>
+              </div>
+              <span class="arrow text-slate-500 text-xl transition-transform">→</span>
             </div>
-            <span class="arrow text-slate-500 text-xl transition-transform">→</span>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-300/80 mb-2">Compensation</div>
+            <h2 class="display text-xl font-bold text-white mb-2 leading-tight">外商薪資計算機</h2>
+            <p class="text-sm text-slate-400 leading-relaxed mb-5">
+              試算稅後實領、RSU 解鎖價值與整包報酬。比較 base + bonus + equity 結構。
+            </p>
           </div>
-          <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-300/80 mb-2">Compensation</div>
-          <h2 class="display text-xl font-bold text-white mb-2 leading-tight">外商薪資計算機</h2>
-          <p class="text-sm text-slate-400 leading-relaxed mb-5">
-            試算稅後實領、RSU 解鎖價值與整包報酬。比較 base + bonus + equity 結構。
-          </p>
-          <div class="flex flex-wrap gap-1.5">
+          <div class="flex flex-wrap gap-1.5 mt-auto">
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">RSU 估值</span>
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">稅後試算</span>
             <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">Total Comp</span>
@@ -236,7 +273,7 @@
       <footer class="glass rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-sm">
         <div class="text-slate-400 leading-relaxed">
           <span class="text-[10px] uppercase tracking-[0.18em] text-slate-500 mr-3">Note</span>
-          所有計算皆在瀏覽器本地完成,不會上傳任何資料。
+          所有計算皆在瀏覽器本地完成，不會上傳任何資料。
         </div>
         <div class="text-[11px] text-slate-600 tracking-wider">
           PERSONAL FINANCE TOOLKIT · BUILT WITH TAILWIND
