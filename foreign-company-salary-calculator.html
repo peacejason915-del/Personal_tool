@@ -1,704 +1,1548 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>外商薪資計算機</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --claude-cream: #faf9f5;
-    --claude-paper: #ffffff;
-    --claude-ink: #2d2a26;
-    --claude-muted: #6b6862;
-    --claude-line: #e8e5dc;
-    --claude-copper: #cc785c;
-    --claude-copper-dark: #b8654a;
-    --claude-copper-soft: #f4e9e2;
-    --claude-tan: #c9a875;
-    --claude-walnut: #8b6f47;
-  }
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
-    background: var(--claude-cream);
-    color: var(--claude-ink);
-  }
-  .font-serif-display {
-    font-family: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
-    font-feature-settings: "ss01", "ss02";
-  }
-  input[type=number]::-webkit-inner-spin-button,
-  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  input[type=number] { -moz-appearance: textfield; }
-
-  /* 所有可編輯數字欄位都帶淡銅橘背景作為視覺提示 */
-  input[type="number"] {
-    background-color: rgba(204, 120, 92, 0.07);
-    border-radius: 4px;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
-    cursor: text;
-  }
-  input[type="number"]:hover {
-    background-color: rgba(204, 120, 92, 0.15);
-  }
-  input[type="number"]:focus {
-    background-color: rgba(204, 120, 92, 0.2);
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(204, 120, 92, 0.45);
-  }
-  /* 匯出截圖時移除背景與 ring,保持輸出乾淨 */
-  body.capturing input[type="number"] {
-    background-color: transparent;
-    box-shadow: none;
-  }
-  .export-only { display: none; }
-  body.capturing .no-export { display: none !important; }
-  body.capturing .export-only { display: block !important; }
-  /* Custom utility classes mapped to Claude palette */
-  .text-ink { color: var(--claude-ink); }
-  .text-muted { color: var(--claude-muted); }
-  .text-copper { color: var(--claude-copper); }
-  .text-copper-dark { color: var(--claude-copper-dark); }
-  .text-walnut { color: var(--claude-walnut); }
-  .bg-cream { background-color: var(--claude-cream); }
-  .bg-paper { background-color: var(--claude-paper); }
-  .bg-copper { background-color: var(--claude-copper); }
-  .bg-copper-soft { background-color: var(--claude-copper-soft); }
-  .bg-tan { background-color: var(--claude-tan); }
-  .bg-walnut { background-color: var(--claude-walnut); }
-  .border-line { border-color: var(--claude-line); }
-  .ring-copper { --tw-ring-color: var(--claude-copper); }
-  .focus-copper:focus { outline: 2px solid var(--claude-copper); outline-offset: 1px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>通用型外商薪資與總薪酬 (TC) 計算機</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  </style>
 </head>
-<body>
-<div id="root"></div>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased p-3 sm:p-6 md:p-8">
 
-<script type="text/babel">
-const { useState, useMemo, useRef } = React;
+<div class="max-w-7xl mx-auto space-y-6">
+  <!-- 頂部標題與匯率切換 -->
+  <header class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-xl backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2 border border-emerald-500/20">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        通用架構版
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">外商總薪酬 (TC) 彈性試算平台</h1>
+      <p class="text-slate-400 text-sm mt-1">自由配置年限 (1~10年)、自訂 RSU 階梯分配、動態 ESPP 規則與幣別匯率</p>
+    </div>
 
-// ---- Icons (lucide-style inline SVGs, 1.5 stroke for softer Claude look) ----
-const Icon = ({ size = 20, children, className = "", stroke = 1.75 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
-       fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round"
-       className={className}>{children}</svg>
-);
-const Calendar       = (p) => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Icon>;
-const Plus           = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
-const Minus          = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
-const Camera         = (p) => <Icon {...p}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></Icon>;
-const Loader2        = (p) => <Icon {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></Icon>;
-const TrendingUp     = (p) => <Icon {...p}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></Icon>;
-const DollarSign     = (p) => <Icon {...p}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></Icon>;
-const Percent        = (p) => <Icon {...p}><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></Icon>;
-const ArrowUp        = (p) => <Icon {...p}><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></Icon>;
-const ArrowDown      = (p) => <Icon {...p}><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/></Icon>;
-const Sparkles       = (p) => <Icon {...p}><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/><path d="M19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75z"/><path d="M5 16l.5 1.5L7 18l-1.5.5L5 20l-.5-1.5L3 18l1.5-.5z"/></Icon>;
-const ChartBar       = (p) => <Icon {...p}><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></Icon>;
-const ChevronDown    = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>;
-const BookOpen       = (p) => <Icon {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></Icon>;
-const Download       = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Icon>;
-const Upload         = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Icon>;
-
-// Numeric input wrapper — auto-selects current value on focus so typing replaces it
-const NumInput = (props) => <input type="number" {...props} onFocus={(e) => e.target.select()} />;
-
-// ---- Main App ----
-const App = () => {
-  const exportRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [importMsg, setImportMsg] = useState(null);  // {type:'ok'|'err', text:string}
-
-  const [currentStockPrice, setCurrentStockPrice] = useState(150);
-  const [showHelp, setShowHelp] = useState(false);
-
-  // 每年底薪都可獨立編輯,作為單一資料來源;調薪%改為衍生值
-  // 預設範例:年薪 150 萬起、每年調薪 3%
-  const [baseSalaries, setBaseSalaries] = useState({
-    2024: 1500000,
-    2025: 1545000,    // +3%
-    2026: 1591350,    // +3%
-    2027: 1639091,    // +3%
-    2028: 1688263     // +3%
-  });
-
-  const [esppSettings, setEsppSettings] = useState([
-    { year: 2024, cost: 120 },
-    { year: 2025, cost: 120 },
-    { year: 2026, cost: 130 },
-    { year: 2027, cost: 130 },
-    { year: 2028, cost: 140 }
-  ]);
-
-  const [rsuSettings, setRsuSettings] = useState([
-    { id: 1, label: "RSU#1", cost: 100, totalGrant: 200, startYear: 2024 },
-    { id: 2, label: "RSU#2", cost: 120, totalGrant: 100, startYear: 2025 },
-    { id: 3, label: "RSU#3", cost: 140, totalGrant: 100, startYear: 2026 },
-    { id: 4, label: "RSU#4", cost: 150, totalGrant: 100, startYear: 2027 },
-    { id: 5, label: "RSU#5", cost: 150, totalGrant: 100, startYear: 2028 },
-  ]);
-
-  const updateSetting = (list, setList, idOrYear, field, value) => {
-    const key = list[0].id ? 'id' : 'year';
-    setList(prev => prev.map(item => item[key] === idOrYear ? { ...item, [field]: Number(value) } : item));
-  };
-
-  const updateBaseSalary = (year, value) => {
-    setBaseSalaries(prev => ({ ...prev, [year]: Number(value) || 0 }));
-  };
-
-  // 調薪% 是衍生值,反向也可改 → 改% 會更新該年的底薪
-  const getRaisePct = (year) => {
-    if (year === 2024) return null;
-    const prev = baseSalaries[year - 1];
-    if (!prev) return 0;
-    return Number((((baseSalaries[year] / prev) - 1) * 100).toFixed(1));
-  };
-  const setRaisePct = (year, pct) => {
-    const prev = baseSalaries[year - 1] || 0;
-    setBaseSalaries(s => ({ ...s, [year]: Math.round(prev * (1 + (Number(pct) || 0) / 100)) }));
-  };
-
-  const yearlyData = useMemo(() => {
-    const data = [];
-    for (let year = 2024; year <= 2028; year++) {
-      const currentBase = baseSalaries[year] || 0;
-
-      const espp = esppSettings.find(s => s.year === year);
-      const esppInv = currentBase / 4;
-      const esppGain = espp && espp.cost > 0 ? (esppInv * (currentStockPrice / espp.cost) - esppInv) : 0;
-
-      const getRsuVal = (id) => {
-        const setting = rsuSettings.find(s => s.id === id);
-        if (!setting || setting.totalGrant === 0 || setting.cost === 0) return 0;
-        const startYear = setting.startYear;
-        if (year < startYear || year >= startYear + 4) return 0;
-        const priceGainRatio = currentStockPrice / setting.cost;
-        const annualVest = (setting.totalGrant * 10000) / 4;
-        return annualVest * priceGainRatio;
-      };
-
-      const r1 = getRsuVal(1), r2 = getRsuVal(2), r3 = getRsuVal(3), r4 = getRsuVal(4), r5 = getRsuVal(5);
-      const rsuTotal = r1 + r2 + r3 + r4 + r5;
-      const total = currentBase + esppGain + rsuTotal;
-
-      data.push({
-        year, base: Math.round(currentBase), esppGain: Math.round(esppGain),
-        r1: Math.round(r1), r2: Math.round(r2), r3: Math.round(r3),
-        r4: Math.round(r4), r5: Math.round(r5),
-        rsuTotal: Math.round(rsuTotal), total: Math.round(total)
-      });
-    }
-    return data;
-  }, [currentStockPrice, baseSalaries, rsuSettings, esppSettings]);
-
-  const maxTC = useMemo(() => Math.max(...yearlyData.map(d => d.total), 1), [yearlyData]);
-  const formatCurrency = (val) => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(val);
-
-  const handleExportJSON = () => {
-    const payload = {
-      version: 1,
-      savedAt: new Date().toISOString(),
-      currentStockPrice,
-      baseSalaries,
-      esppSettings,
-      rsuSettings
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const stamp = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
-    a.download = `薪資試算_${stamp}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setImportMsg({ type: 'ok', text: '已匯出 JSON' });
-    setTimeout(() => setImportMsg(null), 2500);
-  };
-
-  const handleImportJSON = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        if (typeof data.currentStockPrice === 'number') setCurrentStockPrice(data.currentStockPrice);
-        if (data.baseSalaries && typeof data.baseSalaries === 'object') setBaseSalaries(data.baseSalaries);
-        if (Array.isArray(data.esppSettings)) setEsppSettings(data.esppSettings);
-        if (Array.isArray(data.rsuSettings)) setRsuSettings(data.rsuSettings);
-        setImportMsg({ type: 'ok', text: `已載入 ${file.name}` });
-      } catch (err) {
-        setImportMsg({ type: 'err', text: '檔案格式錯誤,無法讀取' });
-      }
-      setTimeout(() => setImportMsg(null), 3000);
-    };
-    reader.readAsText(file);
-  };
-
-  const handleExportImage = async () => {
-    if (isCapturing) return;
-    setIsCapturing(true);
-    document.body.classList.add('capturing');
-    try {
-      await new Promise(r => setTimeout(r, 50));
-      const canvas = await window.html2canvas(exportRef.current, {
-        scale: 2, useCORS: true, backgroundColor: '#faf9f5',
-        ignoreElements: (el) => el.classList && el.classList.contains('no-export')
-      });
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
-      link.download = `薪資收益分析_${new Date().toLocaleDateString()}.png`;
-      link.click();
-    } finally {
-      document.body.classList.remove('capturing');
-      setIsCapturing(false);
-    }
-  };
-
-  const ProfitBadge = ({ cost, current }) => {
-    if (!cost) return null;
-    const pct = ((current - cost) / cost * 100).toFixed(1);
-    const isPositive = Number(pct) >= 0;
-    return (
-      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md ${isPositive ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'}`}>
-        {isPositive ? '▲' : '▼'} {Math.abs(pct)}%
-      </span>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-cream p-4 md:p-8" ref={exportRef}>
-      <div className="max-w-7xl mx-auto space-y-6">
-
-        {/* Header */}
-        <header className="bg-paper border border-line rounded-2xl p-4 md:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6">
-          <div className="flex flex-wrap items-center gap-4 lg:gap-5">
-            <div className="w-12 h-12 rounded-xl bg-copper flex items-center justify-center text-white shrink-0">
-              <Sparkles size={22} stroke={2}/>
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-serif-display text-2xl md:text-3xl text-ink leading-tight">薪資收益試算系統</h1>
-              <p className="text-xs md:text-sm text-muted mt-1 tracking-wide">Wealth Accumulation Analysis · 五年期收益模擬</p>
-            </div>
-            <div className="no-export flex items-center gap-1.5 lg:ml-2 lg:border-l lg:border-line lg:pl-3">
-              <button onClick={handleExportJSON} title="把目前所有設定下載成 JSON 檔"
-                className="px-2.5 py-2 flex items-center gap-1.5 text-muted hover:text-copper hover:bg-copper-soft rounded-lg transition-colors">
-                <Download size={16}/>
-                <span className="text-xs font-medium">匯出</span>
-              </button>
-              <button onClick={() => fileInputRef.current?.click()} title="選擇先前匯出的 JSON 檔還原設定"
-                className="px-2.5 py-2 flex items-center gap-1.5 text-muted hover:text-copper hover:bg-copper-soft rounded-lg transition-colors">
-                <Upload size={16}/>
-                <span className="text-xs font-medium">載入</span>
-              </button>
-              <button onClick={handleExportImage} disabled={isCapturing} title="把整頁存成 PNG 圖檔"
-                className="px-2.5 py-2 flex items-center gap-1.5 text-muted hover:text-copper hover:bg-copper-soft rounded-lg transition-colors">
-                {isCapturing ? <Loader2 size={16} className="animate-spin"/> : <Camera size={16}/>}
-                <span className="text-xs font-medium">截圖</span>
-              </button>
-              <input ref={fileInputRef} type="file" accept="application/json,.json"
-                className="hidden"
-                onChange={(e) => { handleImportJSON(e.target.files[0]); e.target.value = ''; }}/>
-            </div>
-            {importMsg && (
-              <span className={`no-export text-xs font-medium px-2.5 py-1 rounded-md ${importMsg.type === 'ok' ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'}`}>
-                {importMsg.text}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between lg:justify-start gap-4 lg:gap-5 bg-cream border border-line rounded-xl px-4 md:px-6 py-3">
-            <div className="text-left lg:text-right">
-              <div className="text-[11px] uppercase tracking-widest text-muted font-medium">目前股價</div>
-              <div className="text-[10px] text-copper font-medium font-serif-display italic">USD</div>
-            </div>
-            <div className="flex items-center gap-2 md:gap-3">
-              <button onClick={()=>setCurrentStockPrice(p=>Math.max(0, p-5))}
-                className="no-export w-8 h-8 flex items-center justify-center bg-paper border border-line text-muted hover:text-copper hover:border-copper rounded-lg transition-colors shrink-0">
-                <Minus size={16}/>
-              </button>
-              <div className="flex items-center font-serif-display text-2xl md:text-3xl text-ink">
-                <span className="text-muted">$</span>
-                <NumInput value={currentStockPrice}
-                  onChange={(e)=>setCurrentStockPrice(Number(e.target.value)||0)}
-                  className="w-16 md:w-20 bg-transparent text-center outline-none focus:bg-copper-soft rounded-md transition-colors"/>
-              </div>
-              <button onClick={()=>setCurrentStockPrice(p=>p+5)}
-                className="no-export w-8 h-8 flex items-center justify-center bg-paper border border-line text-muted hover:text-copper hover:border-copper rounded-lg transition-colors shrink-0">
-                <Plus size={16}/>
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Help / Tutorial — collapsible */}
-        <section className="bg-paper border border-line rounded-2xl overflow-hidden">
-          <button onClick={()=>setShowHelp(s=>!s)}
-            className="w-full px-4 md:px-6 py-4 flex items-center justify-between gap-3 hover:bg-cream transition-colors group">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-lg bg-copper-soft text-copper-dark flex items-center justify-center shrink-0">
-                <BookOpen size={18}/>
-              </div>
-              <div className="text-left min-w-0">
-                <h2 className="font-serif-display text-base md:text-lg text-ink">使用說明 · 第一次使用請先讀</h2>
-                <p className="text-xs text-muted mt-0.5">How to Use · 5 個欄位的填寫方式與計算邏輯</p>
-              </div>
-            </div>
-            <ChevronDown size={20} className={`text-muted transition-transform shrink-0 ${showHelp ? 'rotate-180' : ''}`}/>
-          </button>
-
-          {showHelp && (
-            <div className="px-4 md:px-6 pb-6 pt-2 border-t border-line space-y-5 text-sm text-ink">
-
-              <div className="flex gap-4 pt-3">
-                <div className="shrink-0 w-7 h-7 rounded-full bg-copper text-white flex items-center justify-center font-serif-display text-sm">1</div>
-                <div className="flex-1">
-                  <div className="font-serif-display text-base text-ink mb-1">目前股價 (USD)</div>
-                  <p className="text-muted leading-relaxed">
-                    輸入你預估的「當下」或「未來」股價,影響所有 ESPP 與 RSU 的計算。
-                    例如:預估股價維持 <span className="font-mono text-copper-dark">$150</span> 時的收益。
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="shrink-0 w-7 h-7 rounded-full bg-copper text-white flex items-center justify-center font-serif-display text-sm">2</div>
-                <div className="flex-1">
-                  <div className="font-serif-display text-base text-ink mb-1">底薪 (TWD)</div>
-                  <p className="text-muted leading-relaxed">
-                    每年底薪都可獨立修改,兩種方式:<br/>
-                    <span className="text-ink">方式 A：</span>直接點選「底薪」欄位輸入該年實際年薪 (TWD)<br/>
-                    <span className="text-ink">方式 B：</span>輸入「調薪 %」欄位,系統會自動從前一年底薪換算
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="shrink-0 w-7 h-7 rounded-full bg-copper text-white flex items-center justify-center font-serif-display text-sm">3</div>
-                <div className="flex-1">
-                  <div className="font-serif-display text-base text-ink mb-1">ESPP 取得成本價 (USD)</div>
-                  <p className="text-muted leading-relaxed">
-                    公司 ESPP 計畫提供折扣價購買股票。輸入該年實際的「買入成本價」。<br/>
-                    <span className="text-ink">計算假設：</span>每年用底薪的 <span className="font-mono text-copper-dark">25%</span> 投入 ESPP<br/>
-                    <span className="text-ink">公式：</span><span className="font-mono text-xs bg-cream px-2 py-1 rounded">淨利 = 25%底薪 × (現價 ÷ 成本價 − 1)</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="shrink-0 w-7 h-7 rounded-full bg-copper text-white flex items-center justify-center font-serif-display text-sm">4</div>
-                <div className="flex-1">
-                  <div className="font-serif-display text-base text-ink mb-1">RSU 授予細項</div>
-                  <p className="text-muted leading-relaxed mb-2">
-                    每筆 RSU 預設 <span className="text-ink">4 年 vest</span> 完畢(每年領 25%)。每張卡片三個欄位:
-                  </p>
-                  <ul className="space-y-1.5 text-muted leading-relaxed ml-2">
-                    <li><span className="text-ink">起始年份(右上角)：</span>第一次 vest 的年份</li>
-                    <li><span className="text-ink">授予總額 (萬)：</span>授予當下的台幣面值總額,例:200 萬</li>
-                    <li><span className="text-ink">成本價 USD：</span>授予當下的股價,用來算後續股價漲跌的收益倍數</li>
-                  </ul>
-                  <div className="mt-3 p-3 bg-cream border border-line rounded-lg text-xs text-muted leading-relaxed">
-                    <span className="text-copper-dark font-medium">範例：</span>2024 年授予 200 萬 @ $100,目前股價 $150<br/>
-                    → 每年 vest = 200萬 ÷ 4 = <span className="font-mono text-ink">50 萬</span><br/>
-                    → 實際價值 = 50萬 × (150 ÷ 100) = <span className="font-mono text-copper-dark">75 萬</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="shrink-0 w-7 h-7 rounded-full bg-copper text-white flex items-center justify-center font-serif-display text-sm">5</div>
-                <div className="flex-1">
-                  <div className="font-serif-display text-base text-ink mb-1">圖表閱讀</div>
-                  <p className="text-muted leading-relaxed">
-                    下方柱狀圖由三色堆疊:<span className="text-copper-dark">底薪</span> + <span className="text-walnut">ESPP 淨利</span> + <span className="font-medium" style={{color:'var(--claude-walnut)'}}>RSU 收益</span> = 總年薪 (TC)。
-                    滑鼠停留可看詳細佔比與年度增減 (YoY)。
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="shrink-0 w-7 h-7 rounded-full bg-copper text-white flex items-center justify-center font-serif-display text-sm">6</div>
-                <div className="flex-1">
-                  <div className="font-serif-display text-base text-ink mb-1">儲存與載入 (右上角圖示)</div>
-                  <p className="text-muted leading-relaxed">
-                    <span className="inline-flex items-center gap-1 text-ink"><Download size={14}/> 匯出</span>:把目前所有設定下載成 JSON 檔(例: <span className="font-mono text-xs">薪資試算_2026-05-14.json</span>)<br/>
-                    <span className="inline-flex items-center gap-1 text-ink"><Upload size={14}/> 載入</span>:選擇之前匯出的 JSON 檔,一鍵還原全部設定<br/>
-                    <span className="inline-flex items-center gap-1 text-ink"><Camera size={14}/> 截圖</span>:把整頁存成 PNG 圖檔分享
-                  </p>
-                  <div className="mt-2 text-xs text-muted">
-                    建議存多份情境,例:<span className="font-mono text-copper-dark">薪資-樂觀.json</span>、<span className="font-mono text-copper-dark">薪資-保守.json</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-line text-xs text-muted italic font-serif-display leading-relaxed">
-                ※ 本工具不會自動儲存任何資料 — 所有數值只存在瀏覽器記憶體裡,關閉頁面即清除。
-                如需保留設定,請使用上方匯出 JSON 功能,檔案儲存在你自己的電腦上。
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Settings — ESPP & RSU */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-
-          {/* ESPP */}
-          <section className="bg-paper border border-line rounded-2xl p-4 md:p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-lg bg-copper-soft text-copper-dark flex items-center justify-center shrink-0">
-                <Percent size={18}/>
-              </div>
-              <div className="min-w-0">
-                <h2 className="font-serif-display text-lg text-ink">ESPP 取得成本價</h2>
-                <p className="text-xs text-muted mt-0.5">Employee Stock Purchase Plan · 每年成本價設定</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              {esppSettings.map(s => (
-                <div key={s.year} className="border border-line rounded-xl p-3 text-center hover:border-copper transition-colors">
-                  <div className="text-[11px] text-muted font-medium mb-2">{s.year}</div>
-                  <NumInput value={s.cost}
-                    onChange={(e)=>updateSetting(esppSettings, setEsppSettings, s.year, 'cost', e.target.value)}
-                    className="w-full text-center font-serif-display text-base text-ink bg-transparent outline-none border-b border-transparent focus:border-copper pb-1"/>
-                  <div className="mt-2 flex justify-center">
-                    <ProfitBadge cost={s.cost} current={currentStockPrice}/>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* RSU */}
-          <section className="bg-paper border border-line rounded-2xl p-4 md:p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-lg bg-copper-soft text-copper-dark flex items-center justify-center shrink-0">
-                <DollarSign size={18}/>
-              </div>
-              <div className="min-w-0">
-                <h2 className="font-serif-display text-lg text-ink">RSU 授予細項</h2>
-                <p className="text-xs text-muted mt-0.5">Restricted Stock Units · 每筆授予 4 年 vest 完畢、每年領 25%</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              {rsuSettings.map(s => (
-                <div key={s.id} className="border border-line rounded-xl p-3 hover:border-copper transition-colors">
-                  {/* Year chip on top */}
-                  <span className="inline-flex items-baseline gap-0.5 text-[10px] text-copper-dark font-medium bg-copper-soft px-1.5 py-0.5 rounded whitespace-nowrap">
-                    <NumInput value={s.startYear}
-                      onChange={(e)=>updateSetting(rsuSettings, setRsuSettings, s.id, 'startYear', e.target.value)}
-                      className="w-9 text-center bg-transparent outline-none"/>
-                    <span>起</span>
-                  </span>
-
-                  {/* RSU label below */}
-                  <div className="text-sm font-medium text-ink mt-2 whitespace-nowrap">{s.label}</div>
-                  <div className="text-[10px] text-muted whitespace-nowrap">vest 至 {s.startYear + 3}</div>
-
-                  {/* Hero: grant amount — centered */}
-                  <div className="mt-4 text-center">
-                    <div className="flex items-baseline justify-center">
-                      <NumInput value={s.totalGrant}
-                        onChange={(e)=>updateSetting(rsuSettings, setRsuSettings, s.id, 'totalGrant', e.target.value)}
-                        className="font-serif-display text-2xl text-copper-dark bg-transparent outline-none w-14 text-right"/>
-                      <span className="text-sm text-muted ml-1">萬</span>
-                    </div>
-                    <div className="text-[10px] text-muted tracking-wide mt-0.5 whitespace-nowrap">授予總額</div>
-                  </div>
-
-                  {/* Separator */}
-                  <div className="h-px bg-line my-3"></div>
-
-                  {/* Cost — centered */}
-                  <div className="text-center">
-                    <div className="flex items-baseline justify-center">
-                      <span className="text-sm text-muted">$</span>
-                      <NumInput value={s.cost}
-                        onChange={(e)=>updateSetting(rsuSettings, setRsuSettings, s.id, 'cost', e.target.value)}
-                        className="font-mono text-lg text-ink bg-transparent outline-none w-12 text-right"/>
-                      <span className="text-xs text-muted ml-1">USD</span>
-                    </div>
-                    <div className="text-[10px] text-muted tracking-wide mt-0.5 whitespace-nowrap">授予成本價</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        {/* Yearly Detail Table */}
-        <section className="bg-paper border border-line rounded-2xl overflow-hidden">
-          <header className="px-4 md:px-6 py-5 border-b border-line flex flex-wrap justify-between items-center gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-lg bg-copper-soft text-copper-dark flex items-center justify-center shrink-0">
-                <Calendar size={18}/>
-              </div>
-              <div className="min-w-0">
-                <h2 className="font-serif-display text-lg text-ink">年度收益細節預估</h2>
-                <p className="text-xs text-muted mt-0.5">Annual Breakdown · 所有欄位皆可編輯</p>
-              </div>
-            </div>
-            <span className="text-[11px] text-muted font-medium italic font-serif-display">點擊任一數值即可修改 · 手機可左右滑動</span>
-          </header>
-
-          <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left border-collapse table-fixed">
-              <thead>
-                <tr className="text-muted text-[10px] uppercase tracking-widest border-b border-line">
-                  <th className="px-3 py-3 w-[7%] font-medium">年份</th>
-                  <th className="px-3 py-3 w-[9%] text-center font-medium">調薪 %</th>
-                  <th className="px-3 py-3 w-[15%] text-right font-medium">底薪 (TWD)</th>
-                  <th className="px-3 py-3 w-[12%] text-right font-medium text-copper-dark">ESPP 淨利</th>
-                  <th className="px-3 py-3 w-[7.5%] text-right font-medium">RSU#1</th>
-                  <th className="px-3 py-3 w-[7.5%] text-right font-medium">RSU#2</th>
-                  <th className="px-3 py-3 w-[7.5%] text-right font-medium">RSU#3</th>
-                  <th className="px-3 py-3 w-[7.5%] text-right font-medium">RSU#4</th>
-                  <th className="px-3 py-3 w-[7.5%] text-right font-medium">RSU#5</th>
-                  <th className="px-3 py-3 w-[19%] text-right font-semibold text-ink bg-copper-soft">總年薪 (TC)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {yearlyData.map((row, i) => {
-                  const raisePct = getRaisePct(row.year);
-                  return (
-                    <tr key={row.year} className="border-b border-line/60 hover:bg-cream transition-colors">
-                      <td className="px-3 py-3 font-serif-display text-lg text-ink">{row.year}</td>
-
-                      <td className="px-3 py-3 text-center">
-                        {row.year === 2024 ? (
-                          <span className="text-muted/40 font-mono text-sm">—</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 border border-line rounded-md px-2 py-1 focus-within:border-copper transition-colors">
-                            <NumInput step="0.1" value={raisePct}
-                              onChange={(e)=>setRaisePct(row.year, e.target.value)}
-                              className="w-10 text-center text-copper-dark font-medium text-sm bg-transparent outline-none"/>
-                            <span className="text-[10px] text-muted">%</span>
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-3 py-3 text-right">
-                        <span className="inline-flex items-center gap-1.5 border border-line rounded-md px-2 py-1 focus-within:border-copper transition-colors w-full max-w-[150px] ml-auto">
-                          <NumInput value={baseSalaries[row.year]}
-                            onChange={(e)=>updateBaseSalary(row.year, e.target.value)}
-                            className="w-full text-right font-mono text-sm text-ink bg-transparent outline-none"/>
-                          <span className="text-[9px] text-muted shrink-0">TWD</span>
-                        </span>
-                      </td>
-
-                      <td className="px-3 py-3 font-mono text-right text-sm text-copper-dark">
-                        {row.esppGain >= 0 ? '+' : ''}{formatCurrency(row.esppGain)}
-                      </td>
-
-                      {[row.r1, row.r2, row.r3, row.r4, row.r5].map((v, k) => (
-                        <td key={k} className="px-3 py-3 font-mono text-right text-[11px] text-muted">
-                          {v > 0 ? formatCurrency(v) : '—'}
-                        </td>
-                      ))}
-
-                      <td className="px-3 py-3 font-serif-display text-right text-lg text-ink bg-copper-soft/60">
-                        {formatCurrency(row.total)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Chart */}
-        <section className="bg-paper border border-line rounded-2xl p-4 md:p-8">
-          <header className="flex items-center justify-between gap-4 mb-6 md:mb-8 flex-wrap">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-lg bg-copper-soft text-copper-dark flex items-center justify-center shrink-0">
-                <ChartBar size={18}/>
-              </div>
-              <div className="min-w-0">
-                <h2 className="font-serif-display text-lg text-ink">未來五年收益視覺化趨勢</h2>
-                <p className="text-xs text-muted mt-0.5">Stacked Wealth Growth · 點擊柱狀圖可看詳細佔比</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 md:gap-5 text-[11px] text-muted font-medium bg-cream border border-line rounded-xl px-3 md:px-5 py-2 md:py-2.5">
-              <div className="flex items-center gap-1.5 md:gap-2"><span className="w-3 h-3 rounded-sm bg-copper"></span> 底薪</div>
-              <div className="flex items-center gap-1.5 md:gap-2"><span className="w-3 h-3 rounded-sm bg-tan"></span> ESPP</div>
-              <div className="flex items-center gap-1.5 md:gap-2"><span className="w-3 h-3 rounded-sm bg-walnut"></span> RSU</div>
-            </div>
-          </header>
-
-          <div className="flex items-end justify-around gap-1.5 sm:gap-3 md:gap-4 pt-4 px-1 md:px-2">
-            {yearlyData.map((d, idx) => {
-              const bH = (d.base / maxTC) * 100;
-              const eH = (d.esppGain / maxTC) * 100;
-              const rH = (d.rsuTotal / maxTC) * 100;
-              const prev = idx > 0 ? yearlyData[idx-1].total : null;
-              const yoy = prev ? ((d.total - prev) / prev * 100).toFixed(1) : null;
-              const up = yoy !== null && Number(yoy) >= 0;
-
-              return (
-                <div key={d.year} className="flex-1 flex flex-col items-center group relative max-w-[140px]">
-
-                  {/* 標籤區固定高度確保對齊 */}
-                  <div className="h-20 flex flex-col items-center justify-end gap-1.5 md:gap-2 mb-3">
-                    {yoy !== null ? (
-                      <span className={`inline-flex items-center gap-0.5 md:gap-1 text-[10px] md:text-[11px] font-medium px-1.5 md:px-2.5 py-0.5 rounded-md border ${up ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-rose-700 bg-rose-50 border-rose-100'}`}>
-                        {up ? <ArrowUp size={10}/> : <ArrowDown size={10}/>}
-                        {up ? '+' : ''}{yoy}%
-                      </span>
-                    ) : <div className="h-[20px]"></div>}
-                    <div className="font-serif-display text-base md:text-lg text-ink group-hover:text-copper transition-colors">
-                      {(d.total/1000000).toFixed(2)}<span className="text-[10px] md:text-xs text-muted ml-0.5">M</span>
-                    </div>
-                  </div>
-
-                  {/* Tooltip */}
-                  <div className="absolute top-24 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col bg-ink text-cream text-xs p-3 md:p-4 rounded-xl shadow-2xl z-50 whitespace-nowrap w-[200px] md:w-auto md:min-w-[220px] max-w-[90vw] border border-walnut/30" style={{backgroundColor: 'var(--claude-ink)'}}>
-                    <div className="font-serif-display border-b border-walnut/30 mb-3 pb-2 text-center text-sm text-tan">{d.year} Breakdown</div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between gap-8"><span className="text-stone-400">底薪佔比</span><span className="font-mono">{((d.base/d.total)*100).toFixed(1)}%</span></div>
-                      <div className="flex justify-between gap-8"><span style={{color: 'var(--claude-copper)'}}>ESPP 淨利</span><span className="font-mono" style={{color: 'var(--claude-copper)'}}>{((d.esppGain/d.total)*100).toFixed(1)}%</span></div>
-                      <div className="flex justify-between gap-8"><span style={{color: 'var(--claude-tan)'}}>RSU 收益</span><span className="font-mono" style={{color: 'var(--claude-tan)'}}>{((d.rsuTotal/d.total)*100).toFixed(1)}%</span></div>
-                    </div>
-                    <div className="flex justify-between mt-3 pt-3 border-t border-walnut/30 text-sm">
-                      <span className="text-stone-400">年度總報酬</span>
-                      <span className="font-serif-display" style={{color: 'var(--claude-tan)'}}>{formatCurrency(d.total)}</span>
-                    </div>
-                  </div>
-
-                  {/* 堆疊柱狀 */}
-                  <div className="w-full max-w-[80px] h-48 md:h-64 flex flex-col-reverse cursor-pointer transition-all duration-300 group-hover:-translate-y-1">
-                    <div className="w-full bg-copper rounded-b-lg transition-all group-hover:brightness-105" style={{height:`${bH}%`}}/>
-                    <div className="w-full bg-tan transition-all group-hover:brightness-105" style={{height:`${eH}%`}}/>
-                    <div className="w-full bg-walnut rounded-t-lg transition-all group-hover:brightness-105" style={{height:`${rH}%`}}/>
-                  </div>
-
-                  <div className="mt-3 md:mt-4 font-serif-display text-base md:text-lg text-muted group-hover:text-copper transition-colors">{d.year}</div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="text-center text-xs text-muted pt-2 pb-4 font-serif-display italic">
-          數據僅供個人試算參考 · 實際收益受市場波動、稅務、公司政策影響
-        </footer>
-
+    <!-- 匯率與主要幣別 -->
+    <div class="flex flex-wrap items-center gap-3 bg-slate-900/80 p-3 rounded-xl border border-slate-700 w-full md:w-auto">
+      <div>
+        <label class="block text-xs font-medium text-slate-400">主要計價/輸入幣別</label>
+        <select id="currencySelect" class="mt-1 bg-slate-800 border border-slate-600 text-slate-100 text-sm rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <option value="TWD" selected>新台幣 (TWD / 萬元)</option>
+          <option value="USD">美元 (USD $)</option>
+          <option value="EUR">歐元 (EUR €)</option>
+          <option value="SGD">新加坡幣 (SGD $)</option>
+          <option value="JPY">日圓 (JPY ¥)</option>
+          <option value="GBP">英鎊 (GBP £)</option>
+        </select>
+      </div>
+      <div id="fxRateWrapper" class="hidden">
+        <label class="block text-xs font-medium text-slate-400">對 TWD 匯率 (1外幣 = ?台幣)</label>
+        <input type="number" id="exchangeRate" value="32.0" step="0.1" class="mt-1 w-28 bg-slate-800 border border-slate-600 text-slate-100 text-sm rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+      </div>
+      <div class="flex items-end gap-2 flex-wrap">
+        <!-- 頂部顯眼大按鈕 -->
+        <button type="button" onclick="exportReportImage(this)" class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-emerald-950 flex items-center gap-1.5 border border-emerald-400/40 transition transform active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          <span>📸 輸出報告圖片</span>
+        </button>
+        <button type="button" onclick="toggleGuideModal(true)" class="text-xs px-3 py-2 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded-xl transition flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          名詞與規則詳細解說
+        </button>
       </div>
     </div>
-  );
-};
+  </header>
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  <!-- 主體網格佈局：控制面板與即時統計 -->
+  <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- 左側參數控制台 (5 欄) -->
+    <section class="lg:col-span-5 space-y-5">
+
+      <!-- 年份與底薪設定 -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-lg space-y-4">
+        <div class="flex justify-between items-start">
+          <h2 class="text-base font-semibold text-white flex items-center gap-2">
+            <span class="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 text-sm font-bold">1</span>
+            聘僱年期與底薪 (Base Salary)
+          </h2>
+          <span class="text-[11px] text-slate-400">固定常態給付</span>
+        </div>
+
+        <p class="text-xs text-slate-400 leading-relaxed">
+          <b>底薪 (Base)</b> 為每月或每半月固定發放的本薪，也是計算勞退、加班費、年終或 ESPP 提撥比例的基準。
+        </p>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300">試算年期 (Years)</label>
+            <div class="flex items-center gap-2 mt-1">
+              <input type="range" id="yearsRange" min="1" max="8" value="4" class="w-full accent-indigo-500 cursor-pointer">
+              <span id="yearsVal" class="text-sm font-bold text-indigo-400 w-8 text-right">4年</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300">預估年度調薪率 (%)</label>
+            <input type="number" id="baseRaiseRate" value="3.0" step="0.5" class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-indigo-500">
+            <span class="text-[10px] text-slate-500 mt-0.5 block">每年 Merit Increase 調幅</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300">第一年本薪年薪 (Annual Base)</label>
+            <div class="relative mt-1">
+              <input type="number" id="baseSalary" value="250" step="5" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-14 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-indigo-500">
+              <span class="currTag absolute right-2.5 top-2.5 text-xs font-bold text-slate-400">萬 TWD</span>
+            </div>
+            <span id="baseMonthlyHint" class="text-[10px] text-indigo-400 mt-1 block font-mono">約月薪 20.8 萬</span>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300">績效獎金目標 (Target Bonus %)</label>
+            <input type="number" id="bonusPercent" value="0" step="1" class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-indigo-500">
+            <span class="text-[10px] text-slate-500 mt-0.5 block">依 Base 計算之浮動考績獎金</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RSU 彈性歸屬面板 -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-lg space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-base font-semibold text-white flex items-center gap-2">
+            <span class="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-bold">2</span>
+            限制性股票 (RSU / Equity)
+          </h2>
+          <div class="flex gap-1">
+            <button type="button" onclick="applyPresetRSU('even')" class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition" title="每年均分">均分</button>
+            <button type="button" onclick="applyPresetRSU('backloaded')" class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition" title="後重型 (常見於 Amazon)">5/15/40/40</button>
+            <button type="button" onclick="applyPresetRSU('frontloaded')" class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition" title="前重型">40/30/20/10</button>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-400 leading-relaxed">
+          <b>RSU (Restricted Stock Units)</b>：公司簽約時承諾給予的股權總面額，並依照「歸屬排程（Vesting Schedule）」逐年成熟發放。
+        </p>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300">RSU 初始核發總額 (Grant Value)</label>
+            <div class="relative mt-1">
+              <input type="number" id="rsuTotalGrant" value="300" step="10" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-14 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-emerald-500">
+              <span class="currTag absolute right-2.5 top-2.5 text-xs font-bold text-slate-400">萬 TWD</span>
+            </div>
+            <span class="text-[10px] text-slate-500 mt-0.5 block">簽約時給予的總價值 (Offer 上總額)</span>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300">預估股價年成長率 (%)</label>
+            <input type="number" id="stockGrowthRate" value="10.0" step="1" class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-emerald-500">
+            <span class="text-[10px] text-slate-500 mt-0.5 block">計算未來歸屬時之複利增值（大盤年化10％供參考）</span>
+          </div>
+        </div>
+
+        <!-- 動態年份比例輸入區 -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="block text-xs font-medium text-slate-300">各年度歸屬比例 (%)</label>
+            <span id="rsuSumBadge" class="text-xs px-2 py-0.5 rounded font-mono font-medium bg-emerald-500/20 text-emerald-300">總和: 100%</span>
+          </div>
+          <div id="rsuScheduleInputs" class="grid grid-cols-4 gap-2">
+            <!-- 由 JS 動態依年數建立 -->
+          </div>
+        </div>
+
+        <!-- 年度考核續發股票 (Refresher / Equity Refresh) -->
+        <div class="pt-3 border-t border-slate-700/60">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <span class="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                年度考績股票補充 (Refresher / Stacking)
+              </span>
+              <span class="text-[10px] text-slate-400 block mt-0.5">避免第 4 年股票斷崖 (Cliff)，每年依考績加發並逐年疊加</span>
+            </div>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="enableRefresher" checked class="sr-only peer">
+              <div class="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-sky-500"></div>
+            </label>
+          </div>
+
+          <div id="refresherControls" class="grid grid-cols-2 gap-3 bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/60">
+            <div>
+              <label class="block text-[11px] font-medium text-slate-300">每年加發比例 (% of Base)</label>
+              <div class="relative mt-1">
+                <input type="number" id="refresherRate" value="50" min="0" max="150" step="5" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-2.5 pr-7 py-1.5 text-xs text-slate-100 focus:ring-2 focus:ring-sky-500">
+                <span class="absolute right-2.5 top-1.5 text-xs text-slate-400">%</span>
+              </div>
+              <span class="text-[10px] text-slate-500 mt-0.5 block">一般常態達標約 40%~50%</span>
+            </div>
+            <div>
+              <label class="block text-[11px] font-medium text-slate-300">每包分幾年成熟 (均分)</label>
+              <select id="refresherVestPeriod" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:ring-2 focus:ring-sky-500">
+                <option value="4" selected>4 年均分 (每年 25%)</option>
+                <option value="3">3 年均分 (每年 33%)</option>
+                <option value="2">2 年均分 (每年 50%)</option>
+                <option value="1">1 年全拿 (每年 100%)</option>
+              </select>
+              <span class="text-[10px] text-slate-500 mt-0.5 block">從第 2 年起逐年疊加成熟</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESPP 員工認股計畫規則 -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-lg space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-base font-semibold text-white flex items-center gap-2">
+            <span class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 text-sm font-bold">3</span>
+            員工購股計畫 (ESPP 套利獲利)
+          </h2>
+          <label class="inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="enableESPP" checked class="sr-only peer">
+            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+          </label>
+        </div>
+
+        <p class="text-xs text-slate-400 leading-relaxed">
+          <b>ESPP (Employee Stock Purchase Plan)</b>：讓員工以底薪折扣價（常見 85 折）購入公司股票。若採<b>立即賣出 (Instant Flip)</b>，此折價差額即為實質無風險獲利。
+        </p>
+
+        <div id="esppControls" class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-300">薪資提撥上限 (%)</label>
+              <input type="number" id="esppContribRate" value="25" min="1" max="50" class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-amber-500">
+              <span class="text-[10px] text-slate-500 mt-0.5 block">一般外商上限 10% ~ 25%</span>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300">購股折扣率 (%)</label>
+              <div class="relative mt-1">
+                <input type="number" id="esppDiscount" value="15" min="0" max="50" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-amber-500">
+                <span class="absolute right-2.5 top-2.5 text-xs text-slate-500">%</span>
+              </div>
+              <span class="text-[10px] text-slate-500 mt-0.5 block">15% 折扣約享 17.65% 實質淨獲利</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-300">IRS / 每年法定購買上限 (原價)</label>
+              <div class="relative mt-1">
+                <input type="number" id="esppMaxCap" value="80" step="5" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-14 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-amber-500">
+                <span class="currTag absolute right-2.5 top-2.5 text-xs font-bold text-slate-400">萬 TWD</span>
+              </div>
+              <span class="text-[10px] text-slate-500 mt-0.5 block">美國 IRS 規定為美金 $25,000 (約 80 萬)</span>
+            </div>
+            <div>
+              <div class="flex items-center justify-between">
+                <label class="block text-xs font-medium text-slate-300">Lookback 回溯額外獲益 (%)</label>
+                <div class="flex items-center gap-1">
+                  <button type="button" onclick="setLookbackVal(0)" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded transition">填 0</button>
+                  <button type="button" onclick="setLookbackVal(15)" class="text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-bold transition">推薦 15</button>
+                  <button type="button" onclick="setLookbackVal(30)" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded transition">填 30</button>
+                </div>
+              </div>
+              <input type="number" id="esppLookbackGain" value="0" step="1" placeholder="建議：0 或 15" class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-amber-500">
+              <span class="text-[10px] text-amber-300/90 mt-1 block leading-relaxed font-medium">
+                💡 <b>建議填寫數值：</b><br>
+                • <b>填 0（保守基本盤）</b>：只算 85 折保底無風險獲利（約 17.65%），不計股價增值。<br>
+                • <b>填 15（2年回溯 + 大盤年化10% 推薦）</b>：若有 24 個月 Lookback 且股價隨大盤穩健成長，鎖定初期低價平均每期帶來約 15% 額外價差。<br>
+                • <b>填 30~50+（強勢飆股）</b>：公司股價於兩年內暴漲或翻倍時填入。
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 簽約金 / 留任獎金 (Sign-on / Retention) -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-lg space-y-4">
+        <div class="flex justify-between items-start">
+          <h2 class="text-base font-semibold text-white flex items-center gap-2">
+            <span class="p-1.5 rounded-lg bg-pink-500/20 text-pink-400 text-sm font-bold">4</span>
+            簽約金 / 留任金 (Sign-on / Retention)
+          </h2>
+          <span class="text-[11px] text-slate-400">彌補前公司股票損失 (Buyout)</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          <b>Sign-on Bonus</b> 常見於補償換工作失去的年終或未成熟股權。通常第 1 年最高，部分公司分第 1、2 年發放。
+        </p>
+        <div id="signonScheduleInputs" class="grid grid-cols-4 gap-2">
+          <!-- 由 JS 動態建立各年份簽約金欄位 -->
+        </div>
+      </div>
+
+    </section>
+    <!-- 右側報表與視覺化圖表 (7 欄) -->
+    <section id="reportCaptureArea" class="lg:col-span-7 space-y-6">
+
+      <!-- 報表頂部參數設定快照 (確保截圖時完整包含所有輸入條件) -->
+      <div id="captureHeaderBanner" class="bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700/90 rounded-2xl p-4 shadow-lg">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-slate-700/80">
+          <div>
+            <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              外商總薪酬 (TC) 試算報告
+            </h2>
+            <p class="text-[11px] text-slate-400">完整薪資結構、股權歸屬、ESPP 與年度福利全貌</p>
+          </div>
+          <span id="reportGenDate" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-md border border-slate-700 font-mono"></span>
+        </div>
+
+        <div class="mt-3">
+          <div class="text-[11px] font-semibold text-emerald-400 mb-1.5 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+            輸入設定與試算條件一覽 (Parameters)
+          </div>
+          <div id="paramSummaryList" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-300">
+            <!-- JS 自動動態更新填入的所有參數摘要 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 統計摘要卡片 -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-gradient-to-br from-indigo-950/60 to-slate-800 border border-indigo-500/30 rounded-2xl p-4 shadow-lg">
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-indigo-300 font-medium">首年總薪酬 (Year 1 TC)</span>
+            <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded">入職第一年</span>
+          </div>
+          <div id="y1TotalPrimary" class="text-2xl font-black text-white mt-1">--</div>
+          <div id="y1TotalSecondary" class="text-xs text-indigo-300 font-semibold mt-0.5">--</div>
+        </div>
+
+        <div class="bg-gradient-to-br from-emerald-950/60 to-slate-800 border border-emerald-500/30 rounded-2xl p-4 shadow-lg">
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-emerald-300 font-medium">平均年總薪酬 (Avg. Annual TC)</span>
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">年平均</span>
+          </div>
+          <div id="avgTotalPrimary" class="text-2xl font-black text-white mt-1">--</div>
+          <div id="avgTotalSecondary" class="text-xs text-emerald-300 font-semibold mt-0.5">--</div>
+        </div>
+
+        <div class="bg-gradient-to-br from-amber-950/60 to-slate-800 border border-amber-500/30 rounded-2xl p-4 shadow-lg">
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-amber-300 font-medium">試算期累計總值 (Cumulative)</span>
+            <span id="cumPeriodTag" class="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded">4年累計</span>
+          </div>
+          <div id="cumTotalPrimary" class="text-2xl font-black text-white mt-1">--</div>
+          <div id="cumTotalSecondary" class="text-xs text-amber-300 font-semibold mt-0.5">--</div>
+        </div>
+      </div>
+
+      <!-- 圖表分析 -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-lg">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-white tracking-wide uppercase flex items-center gap-2">
+              <span>薪酬結構堆疊圖 (各年份展開)</span>
+              <span class="text-[10px] bg-emerald-500/20 text-emerald-300 font-normal px-2 py-0.5 rounded-full border border-emerald-500/30">區塊直顯金額與佔比 %</span>
+            </h3>
+            <p class="text-[11px] text-slate-400">柱狀內部直接顯示各項目實領數值與佔比 (%)；頂端為該年 TC 總年薪</p>
+          </div>
+          <div class="flex items-center gap-2 self-start sm:self-auto">
+            <button type="button" onclick="exportReportImage(this)" class="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              <span>輸出圖表圖片</span>
+            </button>
+            <span class="text-xs text-slate-300 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-700">單位: <span class="currLabel">TWD</span></span>
+          </div>
+        </div>
+        <div class="h-64 sm:h-72 w-full">
+          <canvas id="tcChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 明細表格 -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-lg space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-700/70">
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-bold text-white tracking-wide">各年度收入項目詳細清單 (TC Breakdown)</h3>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">全螢幕自適應．無水平捲軸</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">清楚拆解各年度固定底薪、股票歸屬、Refresher、ESPP 與總額</p>
+          </div>
+
+          <!-- 檢視模式切換與匯出按鈕 -->
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- 視圖切換 Tab -->
+            <div class="inline-flex rounded-xl bg-slate-900/90 p-1 border border-slate-700 text-xs">
+              <button type="button" id="tabTableBtn" onclick="switchBreakdownView('table')" class="px-2.5 py-1 rounded-lg font-semibold bg-emerald-600 text-white transition shadow-sm">
+                📊 緊湊總覽
+              </button>
+              <button type="button" id="tabCardsBtn" onclick="switchBreakdownView('cards')" class="px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-slate-200 transition">
+                🗂️ 年度卡片
+              </button>
+            </div>
+
+            <button type="button" id="exportImgBtn" onclick="exportReportImage()" class="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition flex items-center gap-1.5 shadow-md">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              <span>匯出圖片</span>
+            </button>
+            <button type="button" onclick="copySummaryText()" class="text-xs px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-xl text-slate-200 transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+              <span>複製文字</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 視圖 1：直觀卡片清單 -->
+        <div id="cardsViewWrapper" class="space-y-3 hidden">
+          <div id="annualCardsContainer" class="space-y-3">
+            <!-- 由 JS 動態生成每一年結構完整的專屬卡片 -->
+          </div>
+        </div>
+
+        <!-- 視圖 2：無捲軸全寬緊湊對照表 (預設顯示) -->
+        <div id="tableViewWrapper">
+          <table class="w-full text-left text-xs border-collapse table-fixed bg-slate-900/30 rounded-xl overflow-hidden border border-slate-700/60">
+            <thead>
+              <tr class="border-b border-slate-700 text-slate-300 bg-slate-900/80">
+                <th class="py-2.5 px-3 font-semibold w-[18%]">年度</th>
+                <th class="py-2.5 px-2 font-medium w-[22%]">固定現金薪資</th>
+                <th class="py-2.5 px-2 font-medium w-[24%] text-emerald-300">股票股權收益</th>
+                <th class="py-2.5 px-2 font-medium w-[16%] text-amber-300">ESPP</th>
+                <th class="py-2.5 px-3 font-bold text-right text-white w-[20%]">該年 TC 總額</th>
+              </tr>
+            </thead>
+            <tbody id="compactTableBody" class="divide-y divide-slate-700/50 text-slate-200">
+              <!-- JS 動態生成 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 自訂通知提示 -->
+      <div id="noticeToast" class="hidden p-3 rounded-xl bg-slate-700 text-slate-200 text-xs text-center border border-slate-600 transition-all"></div>
+
+    </section>
+  </main>
+</div>
+
+<!-- 圖片產出預覽與手動儲存彈窗 (避免瀏覽器 iframe 阻擋自動下載) -->
+<div id="imagePreviewModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col p-5 space-y-4 shadow-2xl">
+    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+      <div>
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+          薪酬報告圖片已產生
+        </h3>
+        <p class="text-xs text-slate-400 mt-0.5">點擊下方按鈕下載，或在圖片上按滑鼠右鍵選擇「另存圖片」</p>
+      </div>
+      <button type="button" onclick="closeImageModal()" class="text-slate-400 hover:text-white text-2xl font-bold p-1">&times;</button>
+    </div>
+
+    <!-- 圖片預覽滾動區 -->
+    <div class="overflow-y-auto max-h-[65vh] rounded-xl border border-slate-700/80 bg-slate-950 p-2 flex justify-center">
+      <img id="previewImageTag" alt="薪酬報告預覽" class="rounded-lg shadow-lg max-w-full h-auto object-contain">
+    </div>
+
+    <!-- 操作按鈕 -->
+    <div class="flex flex-wrap justify-between items-center gap-3 pt-2 border-t border-slate-700">
+      <span class="text-xs text-slate-400">提示：手機長按圖片、電腦右鍵皆可直接儲存或複製</span>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="copyImageToClipboard()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+          複製圖片
+        </button>
+        <a id="modalDownloadLink" href="#" download="薪酬報告.png" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          儲存/下載圖片
+        </a>
+        <button type="button" onclick="closeImageModal()" class="px-3.5 py-2 bg-slate-600 hover:bg-slate-500 text-slate-200 rounded-xl text-xs font-medium transition">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細名詞與公式解說彈窗 (Modal) -->
+<div id="guideModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl">
+    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+      <h3 class="text-lg font-bold text-white flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+        外商總薪酬 (Total Compensation, TC) 結構詳解
+      </h3>
+      <button onclick="toggleGuideModal(false)" class="text-slate-400 hover:text-white text-xl font-bold p-1">&times;</button>
+    </div>
+
+    <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+      <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-700">
+        <h4 class="font-bold text-indigo-400 text-sm mb-1">1. 底薪 (Base Salary) 與 調薪率 (Merit Increase)</h4>
+        <p>固定領取的基礎本薪。外商通常每年依據績效給予 2% ~ 5% 不等的調薪。本計算機支援設定「預估年度調薪率」，依複利計算後續年度本薪。</p>
+      </div>
+
+      <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-700">
+        <h4 class="font-bold text-emerald-400 text-sm mb-1">2. 限制性股票 (RSU) 與 歸屬期 (Vesting Schedule)</h4>
+        <p>Offer 上承諾的通常是「多年授予總值 (Total Grant)」。股票並非入職即全拿，而是分年成熟（Vesting）：</p>
+        <ul class="list-disc list-inside mt-1 space-y-1 text-slate-400">
+          <li><b>均分型 (Even)</b>：如 Google / Microsoft 常見 25% / 25% / 25% / 25%。</li>
+          <li><b>後重型 (Backloaded)</b>：如 Amazon 常見 5% / 15% / 40% / 40%（前兩年通常用高額 Sign-on 補齊）。</li>
+          <li><b>前重型 (Frontloaded)</b>：少數公司採 40% / 30% / 20% / 10% 吸引人才前兩年留任。</li>
+          <li><b>股價年成長率</b>：若公司股價上漲，成熟時換算的實際金額會高於簽約時初始價值。</li>
+        </ul>
+      </div>
+
+      <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-700">
+        <h4 class="font-bold text-teal-400 text-sm mb-1">3. 續約加發股票 (Refresher) 與股票堆疊 (Stacking)</h4>
+        <p>入職簽約的 RSU 在 4 年結束後若沒有新股票，年薪將面臨雪崩式的「股票斷崖 (Equity Cliff)」。因此外商通常在每年考核給予 <b>Refresher Grant</b>：</p>
+        <ul class="list-disc list-inside mt-1 space-y-1 text-slate-400">
+          <li><b>常見額度</b>：一般表現良好約為 <b>Base 的 20% ~ 35%</b>；超高績效可達 <b>50% ~ 100%+</b>。</li>
+          <li><b>堆疊機制 (Stacking)</b>：每年的 Refresher 也分成 4 年成熟。到了第 3、4 年時，會同時有 3~4 包股票在同時歸屬，維持並推升總薪資。</li>
+        </ul>
+      </div>
+
+      <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-700">
+        <h4 class="font-bold text-amber-400 text-sm mb-1">4. 員工購股計畫 (ESPP) 與 Lookback（回溯條款）</h4>
+        <p>公司允許以薪資提撥打折（通常 85 折）買股票。若立即賣出，保底利潤約為 $1 / (1 - 0.15) - 1 = 17.65\%$。</p>
+        <div class="mt-2 text-slate-300 bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/80 space-y-1.5 text-xs">
+          <div class="font-semibold text-amber-300">💡 Lookback 額外獲益 (%) 填寫指南：</div>
+          <p class="text-slate-300 leading-relaxed">
+            若公司具備「回溯條款（以期初與期末價格取低者打折）」，且方案長達 <b>2 年（24 個月）</b>，購股成本會鎖定在兩年前的低點。
+          </p>
+          <ul class="list-disc list-inside space-y-1 text-slate-400">
+            <li><b class="text-slate-200">填 0（極度保守）</b>：只算 85 折保底無風險獲利（約 17.65%），把所有價差當額外獎勵。</li>
+            <li><b class="text-amber-300">填 15（對標大盤年化 10% 推薦）</b>：若不預測個股妖股暴漲、純以美股大盤年化 10% 穩健估算，2 年內 4 次購買因鎖定初期低價，平均每次可額外帶來約 15% 的超額價差獲益（總實質獲利率約 32.7%）。</li>
+            <li><b class="text-sky-300">填 30 ~ 50+（強勢成長/牛市）</b>：若公司股價在兩年內翻倍，後期的超額價差利潤會高達 50%~100%+。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-700">
+        <h4 class="font-bold text-pink-400 text-sm mb-1">5. 簽約金 (Sign-on Bonus)</h4>
+        <p>外商常藉由一次性或分 2 年給予的簽約獎金，補償員工跳槽時被放棄的前公司年終與未成熟股權 (Buyout)。</p>
+      </div>
+    </div>
+
+    <div class="text-right pt-2 border-t border-slate-700">
+      <button onclick="toggleGuideModal(false)" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-semibold">我知道了，關閉說明</button>
+    </div>
+  </div>
+</div>
+<script>
+  let chartInstance = null;
+
+  // 儲存動態年份與各項目數值 (以台幣「萬」為基準，預設簽約金為 0)
+  const state = {
+    years: 4,
+    currency: 'TWD',
+    rsuShares: [25, 25, 25, 25, 0, 0, 0, 0],
+    signons: [0, 0, 0, 0, 0, 0, 0, 0]
+  };
+
+  // 輔助格式化貨幣
+  function formatNum(num) {
+    return Math.round(num).toLocaleString('en-US');
+  }
+
+  function formatWan(numTwd) {
+    const wan = (numTwd / 10000).toFixed(1);
+    return `${Number(wan).toLocaleString()} 萬`;
+  }
+
+  // 專門用於表格內部以「萬」顯示的數值格式化
+  function formatTableVal(val, isTWD) {
+    if (val === 0) return '-';
+    if (isTWD) {
+      const wan = (val / 10000).toFixed(1);
+      return Number(wan).toLocaleString();
+    }
+    return formatNum(val);
+  }
+
+  function setLookbackVal(val) {
+    const input = document.getElementById('esppLookbackGain');
+    if (input) {
+      input.value = val;
+      updateCalculations();
+      showToast(`已將 Lookback 額外獲益設為 ${val}%`);
+    }
+  }
+
+  function toggleGuideModal(show) {
+    const modal = document.getElementById('guideModal');
+    if (show) {
+      modal.classList.remove('hidden');
+    } else {
+      modal.classList.add('hidden');
+    }
+  }
+
+  // 顯示提示訊息
+  function showToast(msg) {
+    const toast = document.getElementById('noticeToast');
+    toast.textContent = msg;
+    toast.classList.remove('hidden');
+    setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 2800);
+  }
+
+  function rebuildYearlyInputs() {
+    const years = state.years;
+    const rsuContainer = document.getElementById('rsuScheduleInputs');
+    const signonContainer = document.getElementById('signonScheduleInputs');
+    const isTWD = (state.currency === 'TWD');
+    const signonUnitLabel = isTWD ? '(萬)' : `(${state.currency})`;
+
+    // 調整陣列長度
+    while (state.rsuShares.length < years) {
+      state.rsuShares.push(0);
+    }
+    while (state.signons.length < years) {
+      state.signons.push(0);
+    }
+
+    // RSU 輸入欄
+    rsuContainer.innerHTML = '';
+    for (let i = 0; i < years; i++) {
+      const div = document.createElement('div');
+      div.className = 'space-y-1';
+      div.innerHTML = `
+        <span class="text-[10px] text-slate-400 font-medium block whitespace-nowrap">Y${i+1} 歸屬 (%)</span>
+        <input type="number" data-index="${i}" value="${state.rsuShares[i]}" min="0" max="100" step="1" 
+          class="rsuInput w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-center text-slate-100 focus:ring-2 focus:ring-emerald-500">
+      `;
+      rsuContainer.appendChild(div);
+    }
+
+    // Signon 輸入欄 (台幣以「萬」為單位)
+    signonContainer.innerHTML = '';
+    for (let i = 0; i < years; i++) {
+      const div = document.createElement('div');
+      div.className = 'space-y-1';
+      div.innerHTML = `
+        <span class="text-[10px] text-slate-400 font-medium block whitespace-nowrap">Y${i+1} 簽約金 ${signonUnitLabel}</span>
+        <input type="number" data-index="${i}" value="${state.signons[i]}" min="0" step="${isTWD ? 1 : 1000}" 
+          class="signonInput w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-center text-slate-100 focus:ring-2 focus:ring-pink-500">
+      `;
+      signonContainer.appendChild(div);
+    }
+
+    // 重新綁定事件
+    document.querySelectorAll('.rsuInput').forEach(el => {
+      el.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.index);
+        state.rsuShares[idx] = parseFloat(e.target.value) || 0;
+        updateCalculations();
+      });
+    });
+
+    document.querySelectorAll('.signonInput').forEach(el => {
+      el.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.index);
+        state.signons[idx] = parseFloat(e.target.value) || 0;
+        updateCalculations();
+      });
+    });
+  }
+
+  function applyPresetRSU(type) {
+    const targetYears = Math.min(state.years, 4);
+    // 重設全部為 0
+    state.rsuShares = state.rsuShares.map(() => 0);
+
+    if (type === 'even') {
+      const perYear = Math.floor(100 / targetYears);
+      const remainder = 100 - (perYear * targetYears);
+      for (let i = 0; i < targetYears; i++) {
+        state.rsuShares[i] = perYear;
+      }
+      state.rsuShares[0] += remainder;
+    } else if (type === 'backloaded') {
+      if (targetYears === 4) {
+        state.rsuShares[0] = 5;
+        state.rsuShares[1] = 15;
+        state.rsuShares[2] = 40;
+        state.rsuShares[3] = 40;
+      } else {
+        let sum = 0;
+        for (let i = 0; i < targetYears; i++) {
+          const val = Math.round((i + 1) / (targetYears * (targetYears + 1) / 2) * 100);
+          state.rsuShares[i] = val;
+          sum += val;
+        }
+        state.rsuShares[targetYears - 1] += (100 - sum);
+      }
+    } else if (type === 'frontloaded') {
+      if (targetYears === 4) {
+        state.rsuShares[0] = 40;
+        state.rsuShares[1] = 30;
+        state.rsuShares[2] = 20;
+        state.rsuShares[3] = 10;
+      } else {
+        let sum = 0;
+        for (let i = 0; i < targetYears; i++) {
+          const val = Math.round((targetYears - i) / (targetYears * (targetYears + 1) / 2) * 100);
+          state.rsuShares[i] = val;
+          sum += val;
+        }
+        state.rsuShares[targetYears - 1] += (100 - sum);
+      }
+    }
+    rebuildYearlyInputs();
+    updateCalculations();
+  }
+
+  function handleCurrencySwitch(prevCurr, newCurr, fx) {
+    const baseInput = document.getElementById('baseSalary');
+    const rsuInput = document.getElementById('rsuTotalGrant');
+    const esppCapInput = document.getElementById('esppMaxCap');
+
+    let currentBase = parseFloat(baseInput.value) || 0;
+    let currentRsu = parseFloat(rsuInput.value) || 0;
+    let currentEsppCap = parseFloat(esppCapInput.value) || 0;
+
+    // 從 TWD (萬) 切換到外幣 (原幣元)
+    if (prevCurr === 'TWD' && newCurr !== 'TWD') {
+      // 萬 TWD -> 原台幣 -> 外幣
+      baseInput.value = Math.round((currentBase * 10000) / fx);
+      rsuInput.value = Math.round((currentRsu * 10000) / fx);
+      esppCapInput.value = Math.round((currentEsppCap * 10000) / fx);
+      state.signons = state.signons.map(s => Math.round((s * 10000) / fx));
+    }
+    // 從外幣 (原幣元) 切換到 TWD (萬)
+    else if (prevCurr !== 'TWD' && newCurr === 'TWD') {
+      // 外幣 -> 原台幣 -> 萬 TWD
+      baseInput.value = ((currentBase * fx) / 10000).toFixed(1);
+      rsuInput.value = ((currentRsu * fx) / 10000).toFixed(1);
+      esppCapInput.value = ((currentEsppCap * fx) / 10000).toFixed(1);
+      state.signons = state.signons.map(s => parseFloat(((s * fx) / 10000).toFixed(1)));
+    }
+
+    state.currency = newCurr;
+    rebuildYearlyInputs();
+  }
+
+  function calculateData() {
+    const curr = document.getElementById('currencySelect').value;
+    const isTWD = (curr === 'TWD');
+    const fx = parseFloat(document.getElementById('exchangeRate').value) || 32.0;
+    const years = state.years;
+
+    // 若為台幣模式，輸入的單位是「萬」，運算時乘回 10000 以保持底層精確度
+    const multiplier = isTWD ? 10000 : 1;
+
+    const baseRaw = parseFloat(document.getElementById('baseSalary').value) || 0;
+    const baseFirst = baseRaw * multiplier;
+
+    const raiseRate = (parseFloat(document.getElementById('baseRaiseRate').value) || 0) / 100;
+    const bonusRate = (parseFloat(document.getElementById('bonusPercent').value) || 0) / 100;
+
+    const rsuRaw = parseFloat(document.getElementById('rsuTotalGrant').value) || 0;
+    const rsuTotal = rsuRaw * multiplier;
+    const stockGrowth = (parseFloat(document.getElementById('stockGrowthRate').value) || 0) / 100;
+
+    const refresherEnabled = document.getElementById('enableRefresher').checked;
+    const refresherRate = (parseFloat(document.getElementById('refresherRate').value) || 0) / 100;
+    const refresherVestPeriod = parseInt(document.getElementById('refresherVestPeriod').value) || 4;
+
+    const refresherGrants = [];
+    for (let i = 0; i < years; i++) {
+      const baseYear = baseFirst * Math.pow(1 + raiseRate, i);
+      refresherGrants.push(refresherEnabled ? (baseYear * refresherRate) : 0);
+    }
+
+    const esppEnabled = document.getElementById('enableESPP').checked;
+    const esppContribRate = (parseFloat(document.getElementById('esppContribRate').value) || 0) / 100;
+    const esppDiscountRate = (parseFloat(document.getElementById('esppDiscount').value) || 0) / 100;
+    
+    const esppCapRaw = parseFloat(document.getElementById('esppMaxCap').value) || (isTWD ? 80 : 25000);
+    const esppMaxCap = esppCapRaw * multiplier;
+    const esppLookbackGain = (parseFloat(document.getElementById('esppLookbackGain').value) || 0) / 100;
+
+    const rows = [];
+    let cumulativePrimary = 0;
+
+    for (let i = 0; i < years; i++) {
+      // 1. Base (計入年度調薪)
+      const baseYear = baseFirst * Math.pow(1 + raiseRate, i);
+
+      // 2. Bonus
+      const bonusYear = baseYear * bonusRate;
+
+      // 3. Sign-on
+      const signonYear = (state.signons[i] || 0) * multiplier;
+
+      // 4. 新聘初始 RSU (考量該年歸屬比例與股票複利成長)
+      const rsuSharePct = (state.rsuShares[i] || 0) / 100;
+      const rsuYear = rsuTotal * rsuSharePct * Math.pow(1 + stockGrowth, i);
+
+      // 5. 累積 Refresher 歸屬 (Stacking 計算)
+      let refresherYear = 0;
+      if (refresherEnabled) {
+        for (let g = 0; g < i; g++) {
+          const yearsSinceGrant = i - g;
+          if (yearsSinceGrant <= refresherVestPeriod) {
+            const annualPortion = refresherGrants[g] / refresherVestPeriod;
+            refresherYear += annualPortion * Math.pow(1 + stockGrowth, yearsSinceGrant);
+          }
+        }
+      }
+
+      // 6. ESPP 實質利潤 (以原價上限與薪資提撥上限計算)
+      let esppProfitYear = 0;
+      if (esppEnabled && esppDiscountRate > 0 && esppDiscountRate < 1) {
+        const theoreticalContrib = baseYear * esppContribRate;
+        const maxPurchasePower = Math.min(theoreticalContrib, esppMaxCap);
+        const cost = maxPurchasePower * (1 - esppDiscountRate);
+        const returnRate = (1 / (1 - esppDiscountRate) - 1) + esppLookbackGain;
+        esppProfitYear = cost * returnRate;
+      }
+
+      const totalYearPrimary = baseYear + bonusYear + signonYear + rsuYear + refresherYear + esppProfitYear;
+      
+      let totalYearSecondary = 0;
+      let secondaryLabel = '';
+      if (isTWD) {
+        totalYearSecondary = totalYearPrimary / fx;
+        secondaryLabel = `約 $${formatNum(totalYearSecondary)} USD`;
+      } else {
+        totalYearSecondary = totalYearPrimary * fx;
+        secondaryLabel = `約 ${formatWan(totalYearSecondary)} TWD`;
+      }
+
+      cumulativePrimary += totalYearPrimary;
+
+      rows.push({
+        yearLabel: `第 ${i + 1} 年 (Y${i + 1})`,
+        base: baseYear,
+        bonus: bonusYear,
+        signon: signonYear,
+        rsu: rsuYear,
+        refresher: refresherYear,
+        espp: esppProfitYear,
+        totalPrimary: totalYearPrimary,
+        totalSecondary: totalYearSecondary,
+        secondaryLabel: secondaryLabel
+      });
+    }
+
+    return {
+      rows,
+      curr,
+      isTWD,
+      fx,
+      cumulativePrimary,
+      avgPrimary: cumulativePrimary / years,
+      rsuSum: state.rsuShares.slice(0, years).reduce((a, b) => a + (Number(b) || 0), 0)
+    };
+  }
+
+  function updateCalculations() {
+    const data = calculateData();
+
+    // 更新各輸入框旁的單位標籤（台幣顯示「萬 TWD」，外幣顯示「USD / EUR」）
+    const unitTagText = data.isTWD ? '萬 TWD' : data.curr;
+    const unitText = data.isTWD ? '萬 TWD' : data.curr;
+    document.querySelectorAll('.currTag').forEach(el => el.textContent = unitTagText);
+    document.querySelectorAll('.currLabel').forEach(el => el.textContent = unitText);
+
+    // 更新表格標題單位標示
+    const tableBadge = document.getElementById('tableUnitBadge');
+    if (tableBadge) {
+      tableBadge.textContent = data.isTWD ? '(金額單位：萬元)' : `(金額單位：${data.curr})`;
+    }
+    const headers = [
+      { id: 'thBase', title: '底薪 Base' },
+      { id: 'thBonus', title: '績效 Bonus' },
+      { id: 'thSignon', title: '簽約 Sign-on' },
+      { id: 'thRsu', title: '新聘股票 RSU' },
+      { id: 'thRefresher', title: '考績加發 Refresher' },
+      { id: 'thEspp', title: 'ESPP 利潤' },
+      { id: 'thTotal', title: '年度 TC 總額' }
+    ];
+    headers.forEach(h => {
+      const el = document.getElementById(h.id);
+      if (el) {
+        el.textContent = data.isTWD ? `${h.title} (萬)` : `${h.title} (${data.curr})`;
+      }
+    });
+
+    // 更新第一年月薪提示
+    const baseFirstYear = data.rows[0].base;
+    const baseMonthly = baseFirstYear / 12;
+    const monthlyHint = document.getElementById('baseMonthlyHint');
+    if (data.isTWD) {
+      monthlyHint.textContent = `約月薪 ${(baseMonthly / 10000).toFixed(1)} 萬 TWD`;
+    } else {
+      monthlyHint.textContent = `約月薪 ${formatNum(baseMonthly)} ${data.curr}`;
+    }
+
+    // RSU 總和提示
+    const rsuBadge = document.getElementById('rsuSumBadge');
+    rsuBadge.textContent = `總和: ${data.rsuSum}%`;
+    if (data.rsuSum === 100) {
+      rsuBadge.className = 'text-xs px-2 py-0.5 rounded font-mono font-medium bg-emerald-500/20 text-emerald-300';
+    } else {
+      rsuBadge.className = 'text-xs px-2 py-0.5 rounded font-mono font-medium bg-amber-500/20 text-amber-300';
+    }
+
+    // 摘要卡片更新
+    const y1 = data.rows[0];
+    document.getElementById('cumPeriodTag').textContent = `${state.years} 年累計`;
+
+    // 更新報表頂部的設定參數摘要看板 (截圖必備)
+    const reportDateEl = document.getElementById('reportGenDate');
+    if (reportDateEl) {
+      reportDateEl.textContent = `產出時間: ${new Date().toLocaleDateString('zh-TW')} ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    const paramSummaryEl = document.getElementById('paramSummaryList');
+    if (paramSummaryEl) {
+      const baseRaw = document.getElementById('baseSalary').value;
+      const rsuRaw = document.getElementById('rsuTotalGrant').value;
+      const rsuVestYearsVal = document.getElementById('rsuVestYears') ? document.getElementById('rsuVestYears').value : '4';
+      const raiseRate = document.getElementById('baseRaiseRate').value;
+      const stockRate = document.getElementById('stockGrowthRate').value;
+      const refresherOn = document.getElementById('enableRefresher').checked;
+      const refresherRate = document.getElementById('refresherRate').value;
+      const esppOn = document.getElementById('enableESPP').checked;
+      const esppDisc = document.getElementById('esppDiscount').value;
+      const esppContrib = document.getElementById('esppContribRate').value;
+      const bonusRate = document.getElementById('bonusPercent').value;
+
+      paramSummaryEl.innerHTML = `
+        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+          <span class="text-slate-400 block text-[10px]">第一年 Base</span>
+          <span class="font-bold text-indigo-300">${baseRaw} ${unitTagText} <span class="text-[10px] text-slate-400">(年調 ${raiseRate}%)</span></span>
+        </div>
+        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+          <span class="text-slate-400 block text-[10px]">RSU 初始股票</span>
+          <span class="font-bold text-emerald-300">${rsuRaw} ${unitTagText} <span class="text-[10px] text-slate-400">(分${rsuVestYearsVal}年, 年增${stockRate}%)</span></span>
+        </div>
+        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+          <span class="text-slate-400 block text-[10px]">考核加發 Refresher</span>
+          <span class="font-bold text-sky-300">${refresherOn ? `${refresherRate}% of Base` : '未啟用'}</span>
+        </div>
+        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+          <span class="text-slate-400 block text-[10px]">ESPP 員工認股</span>
+          <span class="font-bold text-amber-300">${esppOn ? `提撥${esppContrib}% (${100 - esppDisc}折)` : '未啟用'}</span>
+        </div>
+        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+          <span class="text-slate-400 block text-[10px]">績效獎金目標</span>
+          <span class="font-bold text-slate-200">${bonusRate}% of Base</span>
+        </div>
+        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+          <span class="text-slate-400 block text-[10px]">計價幣別與匯率</span>
+          <span class="font-bold text-cyan-300">${data.curr} ${!data.isTWD ? `(匯率 ${data.fx})` : ''}</span>
+        </div>
+      `;
+    }
+
+    if (data.isTWD) {
+      document.getElementById('y1TotalPrimary').textContent = `${formatWan(y1.totalPrimary)} TWD`;
+      document.getElementById('y1TotalSecondary').textContent = y1.secondaryLabel;
+
+      document.getElementById('avgTotalPrimary').textContent = `${formatWan(data.avgPrimary)} TWD`;
+      document.getElementById('avgTotalSecondary').textContent = `約 $${formatNum(data.avgPrimary / data.fx)} USD`;
+
+      document.getElementById('cumTotalPrimary').textContent = `${formatWan(data.cumulativePrimary)} TWD`;
+      document.getElementById('cumTotalSecondary').textContent = `約 $${formatNum(data.cumulativePrimary / data.fx)} USD`;
+    } else {
+      document.getElementById('y1TotalPrimary').textContent = `${data.curr} ${formatNum(y1.totalPrimary)}`;
+      document.getElementById('y1TotalSecondary').textContent = y1.secondaryLabel;
+
+      document.getElementById('avgTotalPrimary').textContent = `${data.curr} ${formatNum(data.avgPrimary)}`;
+      document.getElementById('avgTotalSecondary').textContent = `約 ${formatWan(data.avgPrimary * data.fx)} TWD`;
+
+      document.getElementById('cumTotalPrimary').textContent = `${data.curr} ${formatNum(data.cumulativePrimary)}`;
+      document.getElementById('cumTotalSecondary').textContent = `約 ${formatWan(data.cumulativePrimary * data.fx)} TWD`;
+    }
+
+    // 渲染「無捲軸年度卡片清單 (Annual Cards)」
+    const cardsContainer = document.getElementById('annualCardsContainer');
+    if (cardsContainer) {
+      cardsContainer.innerHTML = '';
+      data.rows.forEach((r, idx) => {
+        const totalFormatted = data.isTWD ? `${formatTableVal(r.totalPrimary, true)} 萬` : `${data.curr} ${formatNum(r.totalPrimary)}`;
+        const baseFormatted = data.isTWD ? `${formatTableVal(r.base, true)} 萬` : formatNum(r.base);
+        const bonusFormatted = data.isTWD ? `${formatTableVal(r.bonus, true)} 萬` : formatNum(r.bonus);
+        const signonFormatted = data.isTWD ? `${formatTableVal(r.signon, true)} 萬` : formatNum(r.signon);
+        const rsuFormatted = data.isTWD ? `${formatTableVal(r.rsu, true)} 萬` : formatNum(r.rsu);
+        const refresherFormatted = data.isTWD ? `${formatTableVal(r.refresher, true)} 萬` : formatNum(r.refresher);
+        const esppFormatted = data.isTWD ? `${formatTableVal(r.espp, true)} 萬` : formatNum(r.espp);
+
+        const card = document.createElement('div');
+        card.className = 'bg-slate-900/80 border border-slate-700/80 hover:border-slate-600 rounded-xl p-3.5 transition shadow-sm space-y-3';
+        card.innerHTML = `
+          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-1.5 pb-2 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-bold text-xs">第 ${idx + 1} 年 (Y${idx + 1})</span>
+              <span class="text-[11px] text-slate-400 font-mono">${r.secondaryLabel}</span>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-xs text-slate-400 font-medium">該年 TC 總額:</span>
+              <span class="text-base font-extrabold text-emerald-400 font-mono tracking-tight">${totalFormatted}</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+            <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700/50">
+              <span class="text-[10px] text-slate-400 block mb-0.5">底薪 (Base)</span>
+              <span class="font-bold text-slate-200 font-mono">${baseFormatted}</span>
+            </div>
+            <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700/50">
+              <span class="text-[10px] text-emerald-400 block mb-0.5">新聘股票 (RSU)</span>
+              <span class="font-bold text-emerald-300 font-mono">${r.rsu > 0 ? rsuFormatted : '-'}</span>
+            </div>
+            <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700/50">
+              <span class="text-[10px] text-sky-400 block mb-0.5">考績加發 (Refresher)</span>
+              <span class="font-bold text-sky-300 font-mono">${r.refresher > 0 ? refresherFormatted : '-'}</span>
+            </div>
+            <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700/50">
+              <span class="text-[10px] text-amber-400 block mb-0.5">ESPP 獲利</span>
+              <span class="font-bold text-amber-300 font-mono">${r.espp > 0 ? esppFormatted : '-'}</span>
+            </div>
+            <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700/50">
+              <span class="text-[10px] text-indigo-400 block mb-0.5">績效獎金 (Bonus)</span>
+              <span class="font-bold text-indigo-300 font-mono">${r.bonus > 0 ? bonusFormatted : '-'}</span>
+            </div>
+            <div class="bg-slate-800/80 p-2 rounded-lg border border-slate-700/50">
+              <span class="text-[10px] text-pink-400 block mb-0.5">簽約金 (Sign-on)</span>
+              <span class="font-bold text-pink-300 font-mono">${r.signon > 0 ? signonFormatted : '-'}</span>
+            </div>
+          </div>
+        `;
+        cardsContainer.appendChild(card);
+      });
+    }
+
+    // 渲染「無捲軸緊湊對照表 (Compact Table)」
+    const compactTbody = document.getElementById('compactTableBody');
+    if (compactTbody) {
+      compactTbody.innerHTML = '';
+      data.rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition-colors';
+        const cashTotal = r.base + r.bonus + r.signon;
+        const equityTotal = r.rsu + r.refresher;
+        
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-semibold text-slate-300">${r.yearLabel}</td>
+          <td class="py-2.5 px-2 font-mono text-slate-200">
+            <div>${formatTableVal(cashTotal, data.isTWD)}${data.isTWD ? '萬' : ''}</div>
+            <div class="text-[10px] text-slate-500">底薪 ${formatTableVal(r.base, data.isTWD)}</div>
+          </td>
+          <td class="py-2.5 px-2 font-mono text-emerald-300">
+            <div>${formatTableVal(equityTotal, data.isTWD)}${data.isTWD ? '萬' : ''}</div>
+            <div class="text-[10px]"><span class="text-emerald-400">RSU ${formatTableVal(r.rsu, data.isTWD)}</span> + <span class="text-sky-400">Ref ${formatTableVal(r.refresher, data.isTWD)}</span></div>
+          </td>
+          <td class="py-2.5 px-2 font-mono text-amber-300">${r.espp > 0 ? formatTableVal(r.espp, data.isTWD) + (data.isTWD ? '萬' : '') : '-'}</td>
+          <td class="py-2.5 px-3 font-mono font-bold text-right text-emerald-400">
+            <div>${formatTableVal(r.totalPrimary, data.isTWD)}${data.isTWD ? ' 萬' : ''}</div>
+            <div class="text-[10px] text-slate-400 font-normal">${r.secondaryLabel}</div>
+          </td>
+        `;
+        compactTbody.appendChild(tr);
+      });
+    }
+
+    renderChart(data);
+  }
+
+  // 切換卡片模式與表格模式
+  function switchBreakdownView(viewType) {
+    const cardsWrapper = document.getElementById('cardsViewWrapper');
+    const tableWrapper = document.getElementById('tableViewWrapper');
+    const tabCardsBtn = document.getElementById('tabCardsBtn');
+    const tabTableBtn = document.getElementById('tabTableBtn');
+
+    if (viewType === 'cards') {
+      cardsWrapper.classList.remove('hidden');
+      tableWrapper.classList.add('hidden');
+      tabCardsBtn.className = 'px-2.5 py-1 rounded-lg font-semibold bg-emerald-600 text-white transition shadow-sm';
+      tabTableBtn.className = 'px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-slate-200 transition';
+    } else {
+      cardsWrapper.classList.add('hidden');
+      tableWrapper.classList.remove('hidden');
+      tabTableBtn.className = 'px-2.5 py-1 rounded-lg font-semibold bg-emerald-600 text-white transition shadow-sm';
+      tabCardsBtn.className = 'px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-slate-200 transition';
+    }
+  }
+
+  function renderChart(data) {
+    const canvas = document.getElementById('tcChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const labels = data.rows.map(r => r.yearLabel);
+    const baseData = data.rows.map(r => Math.round(r.base));
+    const bonusData = data.rows.map(r => Math.round(r.bonus));
+    const signonData = data.rows.map(r => Math.round(r.signon));
+    const rsuData = data.rows.map(r => Math.round(r.rsu));
+    const refresherData = data.rows.map(r => Math.round(r.refresher));
+    const esppData = data.rows.map(r => Math.round(r.espp));
+
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+
+    // 自訂 Plugin：直接在每種顏色的堆疊長條圖內部繪製「數值 + 佔比%」，頂端保留「該年 TC 總額」
+    const stackedBarLabelsPlugin = {
+      id: 'stackedBarLabelsPlugin',
+      afterDatasetsDraw(chart) {
+        const { ctx, scales: { x, y } } = chart;
+
+        // 1. 繪製每支長條圖各色塊內部的「數值 + 佔比%」
+        chart.data.datasets.forEach((dataset, datasetIdx) => {
+          const meta = chart.getDatasetMeta(datasetIdx);
+          if (meta.hidden) return;
+
+          meta.data.forEach((barElement, dataIdx) => {
+            const rawVal = dataset.data[dataIdx] || 0;
+            if (rawVal <= 0) return; // 0 元或負值不繪製
+
+            const totalYearVal = data.rows[dataIdx].totalPrimary;
+            const pct = totalYearVal > 0 ? Math.round((rawVal / totalYearVal) * 100) : 0;
+
+            const barHeight = Math.abs(barElement.base - barElement.y);
+            // 若該色塊高度小於 14px，空間不足以塞入文字則略過，避免文字重疊擠壓
+            if (barHeight < 14) return;
+
+            const centerY = (barElement.y + barElement.base) / 2;
+            const centerX = barElement.x;
+
+            // 格式化數值文字
+            let valTxt = '';
+            if (data.isTWD) {
+              const wan = (rawVal / 10000);
+              valTxt = wan >= 10 ? `${Math.round(wan)}萬` : `${wan.toFixed(1)}萬`;
+            } else {
+              valTxt = rawVal >= 1000 ? `${Math.round(rawVal / 1000)}k` : `${rawVal}`;
+            }
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+            ctx.shadowBlur = 3;
+            ctx.fillStyle = '#ffffff';
+
+            if (barHeight >= 28) {
+              // 空間充裕：分為兩行顯示（第一行數值，第二行百分比）
+              ctx.font = '600 11px Inter, system-ui, sans-serif';
+              ctx.fillText(valTxt, centerX, centerY - 6);
+              ctx.font = '500 10px Inter, system-ui, sans-serif';
+              ctx.fillStyle = '#e2e8f0';
+              ctx.fillText(`${pct}%`, centerX, centerY + 7);
+            } else {
+              // 空間緊湊：單行顯示（如 "250萬 73%"）
+              ctx.font = '600 10px Inter, system-ui, sans-serif';
+              ctx.fillText(`${valTxt} (${pct}%)`, centerX, centerY);
+            }
+            ctx.restore();
+          });
+        });
+
+        // 2. 繪製每根長條圖最頂部的「該年 TC 總額」
+        data.rows.forEach((row, i) => {
+          const totalVal = row.totalPrimary;
+          const xPos = x.getPixelForTick(i);
+          const yPos = y.getPixelForValue(totalVal);
+
+          let displayTxt = '';
+          if (data.isTWD) {
+            displayTxt = formatWan(totalVal);
+          } else {
+            displayTxt = totalVal >= 1000 ? `${data.curr} ${Math.round(totalVal / 1000)}k` : `${data.curr} ${formatNum(totalVal)}`;
+          }
+
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.font = 'bold 12px Inter, system-ui, sans-serif';
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+          ctx.shadowBlur = 4;
+          ctx.fillStyle = '#38bdf8'; // 亮天藍色
+          ctx.fillText(`TC: ${displayTxt}`, xPos, Math.max(yPos - 6, 12));
+          ctx.restore();
+        });
+      }
+    };
+
+    chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '底薪 (Base)',
+            data: baseData,
+            backgroundColor: '#64748b',
+            borderRadius: 3
+          },
+          {
+            label: '績效獎金 (Bonus)',
+            data: bonusData,
+            backgroundColor: '#6366f1',
+            borderRadius: 3
+          },
+          {
+            label: '簽約金 (Sign-on)',
+            data: signonData,
+            backgroundColor: '#ec4899',
+            borderRadius: 3
+          },
+          {
+            label: '初始股票 (RSU)',
+            data: rsuData,
+            backgroundColor: '#10b981',
+            borderRadius: 3
+          },
+          {
+            label: '加發股票 (Refresher)',
+            data: refresherData,
+            backgroundColor: '#0ea5e9',
+            borderRadius: 3
+          },
+          {
+            label: 'ESPP 獲利',
+            data: esppData,
+            backgroundColor: '#f59e0b',
+            borderRadius: 3
+          }
+        ]
+      },
+      plugins: [stackedBarLabelsPlugin],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { 
+              color: '#cbd5e1', 
+              font: { size: 11 },
+              boxWidth: 12,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            titleColor: '#f8fafc',
+            bodyColor: '#cbd5e1',
+            footerColor: '#38bdf8',
+            borderColor: '#475569',
+            borderWidth: 1,
+            padding: 12,
+            boxPadding: 4,
+            callbacks: {
+              title: function(items) {
+                if (!items.length) return '';
+                const yearIdx = items[0].dataIndex;
+                const row = data.rows[yearIdx];
+                return `📅 ${row.yearLabel} 薪酬總覽`;
+              },
+              label: function(context) {
+                const val = context.raw || 0;
+                if (val === 0) return null; // 金額為 0 則不佔據版面
+                const formatted = data.isTWD ? formatWan(val) : `${data.curr} ${formatNum(val)}`;
+                return ` ${context.dataset.label}: ${formatted}`;
+              },
+              footer: function(items) {
+                if (!items.length) return '';
+                const yearIdx = items[0].dataIndex;
+                const row = data.rows[yearIdx];
+                const primaryStr = data.isTWD ? `${formatWan(row.totalPrimary)} TWD` : `${data.curr} ${formatNum(row.totalPrimary)}`;
+                return `──────────────────\n💰 該年 TC 總薪酬：${primaryStr}\n🌐 ${row.secondaryLabel}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            ticks: { color: '#94a3b8' },
+            grid: { color: '#334155' }
+          },
+          y: {
+            stacked: true,
+            grace: '15%', // 頂部預留 15% 空間，確保總年薪文字不被切到
+            ticks: {
+              color: '#94a3b8',
+              callback: val => {
+                if (data.isTWD) {
+                  return val >= 10000 ? (val / 10000) + '萬' : val;
+                }
+                return val >= 1000 ? (val / 1000) + 'k' : val;
+              }
+            },
+            grid: { color: '#334155' }
+          }
+        }
+      }
+    });
+  }
+
+  // 複製試算摘要文字到剪貼簿
+  function copySummaryText() {
+    const data = calculateData();
+    let text = `【外商總薪酬 (TC) 彈性試算摘要】\n`;
+    text += `年期: ${state.years} 年 | 主幣別: ${data.curr} (對美金/台幣匯率 ${data.fx})\n`;
+    text += `首年 TC: ${data.isTWD ? formatWan(data.rows[0].totalPrimary) + ' TWD' : data.curr + ' ' + formatNum(data.rows[0].totalPrimary)} (${data.rows[0].secondaryLabel})\n`;
+    text += `平均年 TC: ${data.isTWD ? formatWan(data.avgPrimary) + ' TWD' : data.curr + ' ' + formatNum(data.avgPrimary)}\n`;
+    text += `累計總薪酬: ${data.isTWD ? formatWan(data.cumulativePrimary) + ' TWD' : data.curr + ' ' + formatNum(data.cumulativePrimary)}\n\n`;
+    text += `各年度明細 (${data.curr}):\n`;
+    data.rows.forEach(r => {
+      text += `• ${r.yearLabel}: ${formatNum(r.totalPrimary)} (${r.secondaryLabel}) [Base: ${formatNum(r.base)}, RSU: ${formatNum(r.rsu)}, Refresher: ${formatNum(r.refresher)}, Bonus: ${formatNum(r.bonus)}, Signon: ${formatNum(r.signon)}, ESPP: ${formatNum(r.espp)}]\n`;
+    });
+
+    const tempInput = document.createElement("textarea");
+    tempInput.value = text;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand("copy");
+    document.body.removeChild(tempInput);
+
+    showToast('已複製薪酬摘要至剪貼簿！');
+  }
+
+  let currentBlobUrl = null;
+
+  function closeImageModal() {
+    const modal = document.getElementById('imagePreviewModal');
+    if (modal) modal.classList.add('hidden');
+    if (currentBlobUrl) {
+      URL.revokeObjectURL(currentBlobUrl);
+      currentBlobUrl = null;
+    }
+  }
+
+  async function copyImageToClipboard() {
+    try {
+      const img = document.getElementById('previewImageTag');
+      if (!img || !img.src) return;
+      const response = await fetch(img.src);
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      showToast('已複製圖片到剪貼簿！可以直接貼到 Slack/Line/記事本');
+    } catch (e) {
+      showToast('瀏覽器安全性限制複製，請在圖片上點擊右鍵選擇「複製圖片」');
+    }
+  }
+
+  async function exportReportImage(triggerEl) {
+    const btn = (triggerEl instanceof HTMLElement) ? triggerEl : document.getElementById('exportImgBtn');
+    const origContent = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.innerHTML = `
+        <svg class="w-3.5 h-3.5 animate-spin inline-block mr-1" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>完整渲染中...</span>
+      `;
+      btn.disabled = true;
+    }
+
+    const captureEl = document.getElementById('reportCaptureArea');
+
+    try {
+      let targetCanvas = null;
+
+      if (typeof html2canvas !== 'undefined' && captureEl) {
+        // 截圖時鎖定雙欄寬度與高度，截出寬版比例
+        const origStyle = captureEl.getAttribute('style') || '';
+        const splitGrid = document.getElementById('captureSplitGrid');
+        
+        captureEl.style.width = '1050px';
+        if (splitGrid) {
+          splitGrid.classList.remove('grid-cols-1');
+          splitGrid.classList.add('grid-cols-2');
+        }
+
+        targetCanvas = await html2canvas(captureEl, {
+          backgroundColor: '#0f172a',
+          scale: 2, // Retina 2x 高畫質
+          useCORS: true,
+          logging: false,
+          width: 1050,
+          windowWidth: 1050,
+          scrollX: 0,
+          scrollY: 0
+        });
+
+        // 截圖完成後還原原有樣式
+        captureEl.setAttribute('style', origStyle);
+        if (splitGrid) {
+          splitGrid.classList.add('grid-cols-1');
+          splitGrid.classList.remove('grid-cols-2');
+        }
+      } else if (chartInstance) {
+        targetCanvas = chartInstance.canvas;
+      }
+
+      if (!targetCanvas) {
+        showToast('無法取得繪圖區域，請稍後再試');
+        return;
+      }
+
+      // 將 Canvas 轉為 Blob
+      targetCanvas.toBlob(blob => {
+        if (!blob) {
+          showToast('圖片轉檔失敗，請重試');
+          return;
+        }
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const fileName = `外商薪酬完整試算報告_${dateStr}.png`;
+
+        if (currentBlobUrl) {
+          URL.revokeObjectURL(currentBlobUrl);
+        }
+        currentBlobUrl = URL.createObjectURL(blob);
+
+        // 設置彈窗預覽圖片與下載連結
+        const previewImg = document.getElementById('previewImageTag');
+        const downloadLink = document.getElementById('modalDownloadLink');
+        const modal = document.getElementById('imagePreviewModal');
+
+        if (previewImg) previewImg.src = currentBlobUrl;
+        if (downloadLink) {
+          downloadLink.href = currentBlobUrl;
+          downloadLink.download = fileName;
+        }
+
+        // 嘗試觸發下載
+        try {
+          const autoLink = document.createElement('a');
+          autoLink.href = currentBlobUrl;
+          autoLink.download = fileName;
+          document.body.appendChild(autoLink);
+          autoLink.click();
+          document.body.removeChild(autoLink);
+        } catch (downloadErr) {
+          console.warn('自動下載受限，轉由預覽彈窗另存', downloadErr);
+        }
+
+        // 彈出預覽視窗供使用者確認完整內容
+        if (modal) {
+          modal.classList.remove('hidden');
+        }
+
+        showToast('已產生完整報告圖片！包含所有條件與所有明細');
+      }, 'image/png');
+
+    } catch (err) {
+      console.error('匯出報告圖片失敗:', err);
+      showToast('匯出圖片時發生錯誤，請稍後再試');
+    } finally {
+      if (btn) {
+        btn.innerHTML = origContent;
+        btn.disabled = false;
+      }
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const enableRefresher = document.getElementById('enableRefresher');
+    const refresherControls = document.getElementById('refresherControls');
+    enableRefresher.addEventListener('change', () => {
+      if (enableRefresher.checked) {
+        refresherControls.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        refresherControls.classList.add('opacity-40', 'pointer-events-none');
+      }
+      updateCalculations();
+    });
+
+    const refresherInputs = ['refresherRate', 'refresherVestPeriod'];
+    refresherInputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', updateCalculations);
+        el.addEventListener('change', updateCalculations);
+      }
+    });
+
+    // 第一包 RSU 年限選擇監聽
+    const rsuVestYearsSelect = document.getElementById('rsuVestYears');
+    if (rsuVestYearsSelect) {
+      rsuVestYearsSelect.addEventListener('change', () => {
+        applyPresetRSU('even');
+      });
+    }
+
+    // 幣別切換事件
+    let currentCurrency = 'TWD';
+    const currencySelect = document.getElementById('currencySelect');
+    const fxWrapper = document.getElementById('fxRateWrapper');
+
+    currencySelect.addEventListener('change', (e) => {
+      const newCurrency = e.target.value;
+      const fx = parseFloat(document.getElementById('exchangeRate').value) || 32.0;
+
+      // 若選擇外幣則顯示匯率輸入框，否則隱藏
+      if (newCurrency === 'TWD') {
+        fxWrapper.classList.add('hidden');
+      } else {
+        fxWrapper.classList.remove('hidden');
+      }
+
+      handleCurrencySwitch(currentCurrency, newCurrency, fx);
+      currentCurrency = newCurrency;
+      updateCalculations();
+    });
+
+    // 年份拉桿監聽
+    const yearsRange = document.getElementById('yearsRange');
+    const yearsVal = document.getElementById('yearsVal');
+    yearsRange.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      state.years = val;
+      yearsVal.textContent = `${val}年`;
+      rebuildYearlyInputs();
+      updateCalculations();
+    });
+
+    // ESPP 開關切換
+    const enableESPP = document.getElementById('enableESPP');
+    const esppControls = document.getElementById('esppControls');
+    enableESPP.addEventListener('change', () => {
+      if (enableESPP.checked) {
+        esppControls.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        esppControls.classList.add('opacity-40', 'pointer-events-none');
+      }
+      updateCalculations();
+    });
+
+    // 一般輸入欄自動監聽重算
+    const inputIds = [
+      'exchangeRate', 'baseSalary', 'baseRaiseRate',
+      'bonusPercent', 'rsuTotalGrant', 'stockGrowthRate', 'esppContribRate',
+      'esppDiscount', 'esppMaxCap', 'esppLookbackGain'
+    ];
+    inputIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', updateCalculations);
+        el.addEventListener('change', updateCalculations);
+      }
+    });
+
+    // 初始化動態欄位與首次渲染
+    rebuildYearlyInputs();
+    updateCalculations();
+  });
 </script>
 </body>
 </html>
