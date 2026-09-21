@@ -306,7 +306,9 @@
       const [loanFee, setLoanFee] = useState(3000); // 信貸開辦費 (元)
       const [reserveMonths, setReserveMonths] = useState(12); // 預留本息月數
 
-      // 質押參數
+      // 質押參數與開關
+      const [enablePledge, setEnablePledge] = useState(true); // 是否啟用質押
+      const [pledgeRatio, setPledgeRatio] = useState(20); // 質押成數 (預設 20% 安全平衡)
       const [pledgeRate, setPledgeRate] = useState(2.8); // 質押年利率 %
       const [secondPoolWan, setSecondPoolWan] = useState(30); // 第二資金池額度（萬）
 
@@ -324,6 +326,8 @@
           setExpectedReturn(6);
           setLoanRate(2.2);
           setReserveMonths(18);
+          setEnablePledge(false); // 保守防禦：純信貸，不碰質押
+          setPledgeRatio(0);
           setPledgeRate(2.6);
           setSecondPoolWan(50);
         } else if (type === 'balanced') {
@@ -331,6 +335,8 @@
           setExpectedReturn(7.5);
           setLoanRate(2.3);
           setReserveMonths(12);
+          setEnablePledge(true);
+          setPledgeRatio(20); // 標準實戰：質押調至極度安全平衡 20%
           setPledgeRate(2.8);
           setSecondPoolWan(30);
         } else if (type === 'aggressive') {
@@ -338,6 +344,8 @@
           setExpectedReturn(9.5);
           setLoanRate(2.5);
           setReserveMonths(3);
+          setEnablePledge(true);
+          setPledgeRatio(60); // 極限運轉：質押開滿 60%
           setPledgeRate(3.1);
           setSecondPoolWan(10);
         }
@@ -360,7 +368,15 @@
         const totalSafetyBuffer = totalReserveCash + secondPool;
         const runwayMonths = loanPMT > 0 ? totalSafetyBuffer / loanPMT : 999;
 
-        // 4. 計算逐年累積軌跡 (用於圖表呈現)
+        // 4. 質押成數與安全維持率計算
+        // 質押實際借出金額 = 本金 * (成數 / 100)
+        const pledgeLoanAmount = enablePledge ? principal * (pledgeRatio / 100) : 0;
+        // 股票總擔保現值以本金計算，維持率 = (擔保股票市值 / 借款金額) * 100%
+        const pledgeMaintenanceRate = pledgeLoanAmount > 0 ? (principal / pledgeLoanAmount) * 100 : 9999;
+        // 追繳門檻為 130%：耐跌幅度 = 1 - (1.30 * 質押成數 / 100)
+        const maxDrawdownTolerance = pledgeLoanAmount > 0 ? Math.max(0, (1 - (1.30 * (pledgeRatio / 100))) * 100) : 100;
+
+        // 5. 計算逐年累積軌跡 (用於圖表呈現)
         const chartData = [];
         const annualBreakdown = [];
         let loanRemainingPrincipal = principal;
@@ -368,7 +384,11 @@
         
         // 投資複利軌跡 (按月複利)
         let loanInvestValue = actualInvestedCash; 
-        let pledgeInvestValue = principal; // 質押不扣預留，全力運轉
+        
+        // 【修正核心】：若未啟用質押或成數為0，質押投資部位與負債皆為 0
+        const isPledgeActive = enablePledge && pledgeLoanAmount > 0;
+        // 質押運轉總規模：質押借出的資金投入市場
+        let pledgeInvestValue = isPledgeActive ? pledgeLoanAmount : 0;
         const monthlyReturnRate = (expectedReturn / 100) / 12;
 
         for (let year = 1; year <= loanYears; year++) {
@@ -385,11 +405,14 @@
             yearPrincipalPaid += principalThisMonth;
 
             loanInvestValue = loanInvestValue * (1 + monthlyReturnRate);
-            pledgeInvestValue = pledgeInvestValue * (1 + monthlyReturnRate);
+            if (isPledgeActive) {
+              pledgeInvestValue = pledgeInvestValue * (1 + monthlyReturnRate);
+            }
           }
 
-          // 質押同期的利息累積 (到期還本/每年付息)
-          const pledgeCumulativeCost = (principal * (pledgeRate / 100)) * year;
+          // 質押同期的利息累積 (只繳息不還本)
+          const pledgeCumulativeCost = isPledgeActive ? (pledgeLoanAmount * (pledgeRate / 100)) * year : 0;
+          const pledgeNetAsset = isPledgeActive ? Math.round(pledgeInvestValue - pledgeLoanAmount) : 0;
 
           const snapshot = {
             year,
@@ -397,7 +420,7 @@
             '信貸累積總成本': Math.round(loanCumulativeInterest + loanFee),
             '信貸投資淨資產': Math.round(loanInvestValue - loanRemainingPrincipal),
             '質押累積總成本': Math.round(pledgeCumulativeCost),
-            '質押投資淨資產': Math.round(pledgeInvestValue - principal),
+            '質押投資淨資產': pledgeNetAsset,
             loanRemainingPrincipal: Math.round(loanRemainingPrincipal),
             loanInvestValue: Math.round(loanInvestValue),
             pledgeInvestValue: Math.round(pledgeInvestValue)
@@ -407,47 +430,55 @@
           annualBreakdown.push(snapshot);
         }
 
-        // 5. 終局數據摘要
+        // 6. 終局數據摘要
         const finalLoanCost = loanCumulativeInterest + loanFee;
         const finalLoanNetProfit = loanInvestValue - finalLoanCost - actualInvestedCash;
-        const finalPledgeCost = (principal * (pledgeRate / 100)) * loanYears;
-        const finalPledgeNetProfit = pledgeInvestValue - finalPledgeCost - principal;
+        const finalPledgeCost = isPledgeActive ? (pledgeLoanAmount * (pledgeRate / 100)) * loanYears : 0;
+        const finalPledgeNetProfit = isPledgeActive ? (pledgeInvestValue - pledgeLoanAmount) - finalPledgeCost : 0;
 
         return {
           loanPMT,
           totalReserveCash,
           actualInvestedCash,
           runwayMonths,
+          pledgeLoanAmount,
+          pledgeMaintenanceRate,
+          maxDrawdownTolerance,
           chartData,
           annualBreakdown,
           finalLoanCost,
           finalLoanNetProfit,
           finalPledgeCost,
-          finalPledgeNetProfit
+          finalPledgeNetProfit,
+          isPledgeActive
         };
-      }, [principal, expectedReturn, loanRate, loanYears, loanFee, reserveMonths, pledgeRate, secondPool]);
+      }, [principal, expectedReturn, loanRate, loanYears, loanFee, reserveMonths, enablePledge, pledgeRatio, pledgeRate, secondPool]);
 
-      // 安全燈號判斷
+      // 安全燈號判斷函式
       const getSafetyStatus = (months) => {
-        if (months >= 24) return { 
-          color: 'text-emerald-400', 
-          border: 'border-emerald-500/50', 
-          bg: 'bg-emerald-950/20', 
-          badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-          text: '極度安全 (具備對抗 2 年完整熊市的韌性)', 
-          desc: '即便遭遇停薪或大盤崩跌 50%，預留資金仍可完全覆蓋還款本息，無被迫賣股停損之虞。',
-          icon: <Icons.CheckCircle className="w-5 h-5 text-emerald-400" /> 
-        };
-        if (months >= 12) return { 
-          color: 'text-amber-400', 
-          border: 'border-amber-500/50', 
-          bg: 'bg-amber-950/20', 
-          badge: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-          text: '防禦力尚可 (建議股災時搭配質押調度)', 
-          desc: '擁有 1 年的安全現金跑道，若熊市週期拉長至 18 個月以上，需及時啟動第二資金池支援。',
-          icon: <Icons.Activity className="w-5 h-5 text-amber-400" /> 
-        };
-        return { 
+        if (months >= 24) {
+          return {
+            color: 'text-emerald-400',
+            border: 'border-emerald-500/50',
+            bg: 'bg-emerald-950/20',
+            badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+            text: '極度安全 (具備對抗 2 年完整熊市的韌性)',
+            desc: '預留本息與備用資金充沛，能承受極端股災零收入，完全不需被迫賤賣持股。',
+            icon: <Icons.CheckCircle className="w-5 h-5 text-emerald-400" />
+          };
+        }
+        if (months >= 12) {
+          return {
+            color: 'text-amber-400',
+            border: 'border-amber-500/50',
+            bg: 'bg-amber-950/20',
+            badge: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+            text: '防禦力尚可 (建議股災時搭配質押調度)',
+            desc: '安全緩衝期有 1 年以上，遇到大回檔時建議密切注意現金流消耗速度。',
+            icon: <Icons.Activity className="w-5 h-5 text-amber-400" />
+          };
+        }
+        return {
           color: 'text-rose-400', 
           border: 'border-rose-500/50', 
           bg: 'bg-rose-950/20', 
@@ -643,49 +674,155 @@
 
                 {/* 區塊 3: 股票質押與備用資金池 */}
                 <div className="border-t border-slate-800 pt-4">
-                  <h2 className="text-sm font-bold text-purple-400 mb-3 flex items-center gap-2">
-                    📈 股票質押與外部備用防護池
-                  </h2>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-1">質押借款年利率 (%)</label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        value={pledgeRate}
-                        onChange={(e) => setPledgeRate(Number(e.target.value))}
-                        className="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-sm font-mono text-purple-300 focus:outline-none focus:border-purple-400"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center text-xs text-purple-300 mb-1.5">
-                        <span>第二備用資金池額度</span>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="0"
-                            max="500"
-                            step="5"
-                            value={secondPoolWan}
-                            onChange={(e) => setSecondPoolWan(Math.max(0, Number(e.target.value)))}
-                            className="w-16 bg-slate-950 border border-purple-500/50 rounded-md px-2 py-0.5 text-right font-mono text-purple-300 font-bold focus:outline-none focus:border-purple-400 text-sm"
-                          />
-                          <span className="text-purple-300 font-bold">萬</span>
+                  <div className="mb-3">
+                    <h2 className="text-sm font-bold text-purple-400 flex items-center gap-2 mb-2">
+                      📈 股票質押與調度防護網
+                    </h2>
+                    
+                    {/* 直覺大按鈕：iOS 風格滑動開關與說明 */}
+                    <button
+                      type="button"
+                      onClick={() => setEnablePledge(!enablePledge)}
+                      className={`w-full p-3 rounded-xl border text-left transition-all duration-200 flex items-center justify-between cursor-pointer group ${
+                        enablePledge
+                          ? 'bg-purple-950/40 border-purple-500/70 hover:bg-purple-900/50 shadow-lg shadow-purple-950/40 ring-1 ring-purple-500/30'
+                          : 'bg-slate-950 border-slate-700/80 hover:border-slate-600 hover:bg-slate-900/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg transition-colors ${
+                          enablePledge ? 'bg-purple-500/20 text-purple-300' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          <Icons.TrendingUp className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-200">股票質押功能</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
+                              enablePledge ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {enablePledge ? '已啟用 ON' : '未啟用 OFF'}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 block mt-0.5">
+                            {enablePledge ? '點擊可關閉質押（轉為純信貸防禦）' : '點擊即可開啟質押成數與維持率試算'}
+                          </span>
                         </div>
                       </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="200"
-                        step="5"
-                        value={secondPoolWan}
-                        onChange={(e) => setSecondPoolWan(Number(e.target.value))}
-                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-400"
-                      />
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        包含：可動用理財型房貸、家人備用金或應急活存，用以防禦黑天鵝。
-                      </p>
+
+                      {/* 仿 iOS 滑動開關本體 */}
+                      <div className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-0.5 shrink-0 ${
+                        enablePledge ? 'bg-purple-600' : 'bg-slate-700'
+                      }`}>
+                        <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 flex items-center justify-center ${
+                          enablePledge ? 'translate-x-6' : 'translate-x-0'
+                        }`}>
+                          {enablePledge ? (
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                          ) : (
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  {enablePledge ? (
+                    <div className="space-y-3.5">
+                      {/* 質押借款成數控制 */}
+                      <div className="bg-purple-950/30 p-3 rounded-xl border border-purple-800/40">
+                        <div className="flex justify-between items-center text-xs text-purple-300 mb-1.5">
+                          <span className="font-semibold">質押借款成數 (LTV)</span>
+                          <span className="font-mono text-purple-300 font-bold text-sm">{pledgeRatio}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="60"
+                          step="5"
+                          value={pledgeRatio}
+                          onChange={(e) => setPledgeRatio(Number(e.target.value))}
+                          className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-400"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                          <span>0% (不借)</span>
+                          <span>20% (安全平衡)</span>
+                          <span>60% (法規上限)</span>
+                        </div>
+
+                        {/* 維持率與安全耐跌空間警示 */}
+                        <div className="mt-3 pt-2.5 border-t border-purple-900/50 grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-slate-400 text-[11px] block">初始維持率</span>
+                            <span className={`font-mono font-bold ${
+                              financeData.pledgeMaintenanceRate >= 300 ? 'text-emerald-400' : financeData.pledgeMaintenanceRate >= 200 ? 'text-amber-400' : 'text-rose-400'
+                            }`}>
+                              {pledgeRatio > 0 ? `${financeData.pledgeMaintenanceRate.toFixed(0)}%` : '∞ (無負債)'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 text-[11px] block">大盤耐跌緩衝</span>
+                            <span className="font-mono font-bold text-purple-300">
+                              -{financeData.maxDrawdownTolerance.toFixed(0)}% 追繳
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">質押借出金額</label>
+                          <div className="px-3 py-1.5 bg-slate-950 border border-slate-700/80 rounded-lg text-sm font-mono text-purple-300">
+                            {(financeData.pledgeLoanAmount / 10000).toFixed(1)} 萬
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">質押年利率 (%)</label>
+                          <input
+                            type="number"
+                            step="0.05"
+                            value={pledgeRate}
+                            onChange={(e) => setPledgeRate(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-sm font-mono text-purple-300 focus:outline-none focus:border-purple-400"
+                          />
+                        </div>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="p-3 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 text-xs text-slate-400 leading-relaxed">
+                      💡 目前為「純信貸防禦模式」：不將任何股票質押借款，完全免除市場波動追繳與維持率斷頭風險。
+                    </div>
+                  )}
+
+                  {/* 第二備用資金池 */}
+                  <div className="mt-3.5">
+                    <div className="flex justify-between items-center text-xs text-slate-300 mb-1.5">
+                      <span>第二備用資金池額度</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="500"
+                          step="5"
+                          value={secondPoolWan}
+                          onChange={(e) => setSecondPoolWan(Math.max(0, Number(e.target.value)))}
+                          className="w-16 bg-slate-950 border border-purple-500/50 rounded-md px-2 py-0.5 text-right font-mono text-purple-300 font-bold focus:outline-none focus:border-purple-400 text-sm"
+                        />
+                        <span className="text-purple-300 font-bold">萬</span>
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="200"
+                      step="5"
+                      value={secondPoolWan}
+                      onChange={(e) => setSecondPoolWan(Number(e.target.value))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-400"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      備用理財型房貸、緊急存款。當黑天鵝降臨時支援信貸本息或補保證金。
+                    </p>
                   </div>
                 </div>
 
@@ -857,14 +994,16 @@
                   </div>
 
                   {/* 質押總結 */}
-                  <div className="bg-slate-900/60 p-4 sm:p-5 rounded-2xl border border-purple-900/40 relative overflow-hidden">
+                  <div className={`bg-slate-900/60 p-4 sm:p-5 rounded-2xl border relative overflow-hidden ${
+                    financeData.isPledgeActive ? 'border-purple-900/40' : 'border-slate-800 opacity-60'
+                  }`}>
                     <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl pointer-events-none"></div>
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-bold text-purple-300 flex items-center gap-1.5">
                         📈 質押套利 (到期還本/全額滾動)
                       </h4>
                       <span className="text-[10px] px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60">
-                        需控管維持率 ≥ 160%
+                        {financeData.isPledgeActive ? '需控管維持率 ≥ 160%' : '目前未動用'}
                       </span>
                     </div>
 
@@ -876,11 +1015,13 @@
                       <div className="flex justify-between text-slate-400">
                         <span>預估終局純獲利 (淨賺)：</span>
                         <span className="font-mono font-bold text-purple-400 text-sm">
-                          +{(financeData.finalPledgeNetProfit / 10000).toFixed(1)} 萬
+                          {financeData.isPledgeActive ? `+${(financeData.finalPledgeNetProfit / 10000).toFixed(1)} 萬` : '0 萬'}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-400 pt-2 border-t border-slate-800 leading-relaxed">
-                        優勢：資金 100% 參與複利最大化；需時刻留心大盤急跌超過 30% 時的追繳保證金需求。
+                        {financeData.isPledgeActive 
+                          ? `已借出 ${(financeData.pledgeLoanAmount / 10000).toFixed(1)} 萬進場。需留心大盤急跌時維持率跌破 130% 需補錢。`
+                          : '質押未開或動用成數為 0%，此策略處於防禦休眠狀態，無額外利潤亦無斷頭風險。'}
                       </p>
                     </div>
                   </div>
